@@ -409,7 +409,29 @@ window.LIBRARY_DATA = {
     },
     {
       "name": "Universidad Carlos III de Madrid (UC3M)",
-      "program": "Data Science and Engineering",
+      "program": "Aerospace Engineering (1. tercih)",
+      "country": "İspanya",
+      "city": "Madrid (Leganés)",
+      "open": "5 Eki 2026 (Early Admission)",
+      "close": null,
+      "fee": null,
+      "qs": "314 (eşit)",
+      "the": "801–1000",
+      "todo": "Tamamen İngilizce, 4 yıl / 240 ECTS, 100 kontenjan. Early Admission'da Data Science ile aynı başvuru (€150, en fazla 2 bölüm). Eksik: motivation letter (zorunlu) + €150 ödeme",
+      "acceptance": null,
+      "note": "Taban puan 2026/27 (1. tur, 14 üzerinden): 13,322. Kaynak: uc3m.es/bachelor-degree/aeroespace + cut-off grades.",
+      "short": "UC3M",
+      "code": "es",
+      "todoItems": [
+        "Tamamen İngilizce, 4 yıl / 240 ECTS, 100 kontenjan",
+        "Early Admission'da Data Science ile aynı başvuru (€150, en fazla 2 bölüm)",
+        "Eksik: motivation letter (zorunlu) + €150 ödeme"
+      ],
+      "id": 20
+    },
+    {
+      "name": "Universidad Carlos III de Madrid (UC3M)",
+      "program": "Data Science and Engineering (2. tercih)",
       "country": "İspanya",
       "city": "Madrid (Leganés/Getafe)",
       "open": "5 Eki 2026 (Early Admission)",
@@ -417,19 +439,19 @@ window.LIBRARY_DATA = {
       "fee": null,
       "qs": "314 (eşit)",
       "the": "801–1000",
-      "todo": "Early Admission: PCE/UNEDasiss yok, lise diplomasına göre değerlendirme. Yüklenecek: diploma + İng. tercüme, transkript, YKS sonucu + resmi İng. tercüme (Pazartesi tercümeye), IELTS, pasaport; SAT/AP ek başarı. Apostil gerekmez. Şartlı kabul: kayıttan önce denklik volantesi, denklik 1. yıl içinde",
+      "todo": "Early Admission: PCE/UNEDasiss yok, lise diplomasına göre değerlendirme. Yüklenecek: diploma PDF (hazır), transkript, YKS + tercüme (hazır), IELTS, pasaport, motivation letter (eksik); SAT/AP ek başarı. Apostil gerekmez. Şartlı kabul: kayıttan önce denklik volantesi, denklik 1. yıl içinde",
       "acceptance": null,
-      "note": "UC3M kabul ofisi maili (1 Eki 2026). Kabul sırayla – hedef gönderim 7 Eki.",
+      "note": "Taban puan 2026/27 (1. tur): 11,677. UC3M kabul ofisi maili (1 Eki 2026). Başvuru ücreti €150 (2 bölüme kadar); motivation letter zorunlu; dosya ≤4 MB. Hedef gönderim 7 Eki.",
       "short": "UC3M",
       "code": "es",
       "todoItems": [
         "Early Admission: PCE/UNEDasiss yok, lise diplomasına göre değerlendirme",
-        "Yüklenecek: diploma + İng. tercüme, transkript, YKS sonucu + resmi İng. tercüme (Pazartesi tercümeye), IELTS, pasaport",
+        "Yüklenecek: diploma PDF (hazır), transkript, YKS + tercüme (hazır), IELTS, pasaport, motivation letter (eksik)",
         "SAT/AP ek başarı",
         "Apostil gerekmez",
         "Şartlı kabul: kayıttan önce denklik volantesi, denklik 1. yıl içinde"
       ],
-      "id": 20
+      "id": 21
     },
     {
       "name": "Lund University",
@@ -449,7 +471,7 @@ window.LIBRARY_DATA = {
       "todoItems": [
         "Türk lise matematiğinin 'Matematik 4' denkliği (belge üzerinden değerlendiriliyor)"
       ],
-      "id": 21
+      "id": 22
     },
     {
       "name": "Università di Bologna",
@@ -470,7 +492,7 @@ window.LIBRARY_DATA = {
         "İngilizce TOLC-E (€35)",
         "AB dışı kontenjan 10 kişi"
       ],
-      "id": 22
+      "id": 23
     }
   ],
   "notes": [
