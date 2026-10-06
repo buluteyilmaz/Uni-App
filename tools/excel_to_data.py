@@ -108,18 +108,34 @@ def main():
     xlsx = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_XLSX
     ws = openpyxl.load_workbook(xlsx, data_only=True).worksheets[0]
     rows = list(ws.iter_rows(values_only=True))
-    header = [clean(h) for h in rows[0]]
+    # Başlık satırı ilk "Üniversite" satırıdır; tabloda bölüm başlıkları ("Ana liste", "Yedekler")
+    # ve tekrar eden başlık satırları olabilir.
+    start = next(i for i, r in enumerate(rows) if clean(r[0]) == "Üniversite")
+    header = [clean(h) for h in rows[start]]
     keys = [HEADER_KEYS.get(h) for h in header]
 
     unis, notes = [], []
-    for r in rows[1:]:
+    group = "ana"
+    for r in rows:
+        first = clean(r[0])
+        if first and not any(clean(v) for v in r[1:]):
+            low = first.lower()
+            if low.startswith("ana liste"):
+                group = "ana"
+                continue
+            if low.startswith("yedek"):
+                group = "yedek"
+                continue
+        if first == "Üniversite":
+            continue
         rec = {k: clean(v) for k, v in zip(keys, r) if k}
         # Ülkesi olmayan satırlar alttaki açıklama satırlarıdır.
         if not rec.get("country"):
-            if rec.get("name") and rec["name"] != "Açıklama":
+            if rec.get("name") and rec["name"] != "Açıklama" and rows.index(r) > start:
                 notes.append(rec["name"])
             continue
         name = rec["name"]
+        rec["group"] = group
         rec["short"] = SHORT_NAMES.get(name, re.split(r"[–(]", name)[0].strip())
         rec["code"] = COUNTRY_CODES.get(rec["country"], "")
         rec["todoItems"] = split_todo(rec.get("todo"))

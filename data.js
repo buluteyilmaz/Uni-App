@@ -2,29 +2,6 @@
 window.LIBRARY_DATA = {
   "universities": [
     {
-      "name": "TUM – Technical University of Munich",
-      "program": "Aerospace (B.Sc.)",
-      "country": "Almanya",
-      "city": "Münih (Ottobrunn/Taufkirchen)",
-      "open": "15 May 2027",
-      "close": "15 Tem 2027",
-      "fee": null,
-      "qs": "25",
-      "the": "27",
-      "todo": "Almanca A2 sertifikası (Goethe/telc/ÖSD/DSH-1); uni-assist değerlendirmesi (astronomi yerleşimi erişimi kısıtlayabilir); İngilizce motivasyon mektubu + CV; yetenek değerlendirmesi (gerekirse mülakat)",
-      "acceptance": null,
-      "note": "Tarihler: tum.de program sayfası. A2 esnekliği soruldu; sadece otomatik cevap geldi. Almanca kararı bekleniyor.",
-      "short": "TUM",
-      "code": "de",
-      "todoItems": [
-        "Almanca A2 sertifikası (Goethe/telc/ÖSD/DSH-1)",
-        "Uni-assist değerlendirmesi (astronomi yerleşimi erişimi kısıtlayabilir)",
-        "İngilizce motivasyon mektubu + CV",
-        "Yetenek değerlendirmesi (gerekirse mülakat)"
-      ],
-      "id": 1
-    },
-    {
       "name": "KU Leuven (Group T)",
       "program": "Engineering Technology (B.Sc.)",
       "country": "Belçika",
@@ -37,6 +14,7 @@ window.LIBRARY_DATA = {
       "todo": "OMPT-G ≥ %60 (online, gözetimli; 26 soru / 180 dk; matematik → kimya). Plan: Kasım–Aralık. YKS asgari puanı yok, SAT kabul edilmiyor (Group T maili).",
       "acceptance": null,
       "note": "Tarihler KU Leuven 'Application Window' aracında; Group T 2027 şart sayfası linki mailde.",
+      "group": "ana",
       "short": "KU Leuven",
       "code": "be",
       "todoItems": [
@@ -44,48 +22,7 @@ window.LIBRARY_DATA = {
         "Plan: Kasım–Aralık",
         "YKS asgari puanı yok, SAT kabul edilmiyor (Group T maili)"
       ],
-      "id": 2
-    },
-    {
-      "name": "Charles University (FSV)",
-      "program": "Economics and Finance – BEF (B.A.)",
-      "country": "Çekya",
-      "city": "Prag",
-      "open": "1 Kas 2026",
-      "close": null,
-      "fee": null,
-      "qs": "273 (eşit)",
-      "the": "401–500",
-      "todo": "Yok (AP Calculus AB 5 matematik şartını karşılıyor)",
-      "acceptance": null,
-      "note": "Açılış: fsv.cuni.cz",
-      "short": "Charles",
-      "code": "cz",
-      "todoItems": [
-        "Yok (AP Calculus AB 5 matematik şartını karşılıyor)"
-      ],
-      "id": 3
-    },
-    {
-      "name": "CTU – Czech Technical University",
-      "program": "Mechanical Engineering (B.Sc.)",
-      "country": "Çekya",
-      "city": "Prag",
-      "open": null,
-      "close": null,
-      "fee": null,
-      "qs": "432 (eşit)",
-      "the": "1201–1500",
-      "todo": "Diploma denkliği (Prag Belediyesi; fark çıkarsa denklik sınavı); matematik giriş sınavı",
-      "acceptance": null,
-      "note": null,
-      "short": "ČVUT · CTU",
-      "code": "cz",
-      "todoItems": [
-        "Diploma denkliği (Prag Belediyesi; fark çıkarsa denklik sınavı)",
-        "Matematik giriş sınavı"
-      ],
-      "id": 4
+      "id": 1
     },
     {
       "name": "DTU – Technical University of Denmark",
@@ -100,6 +37,7 @@ window.LIBRARY_DATA = {
       "todo": "Ön değerlendirme – son gün 1 Kas 2026. Statement of Hours müdür imzalı (1 Eki, taranmış). Kalan: unistart.dtu.dk'ye yükleme + €100 ücret (İtalya'dan önce)",
       "acceptance": null,
       "note": "Asıl başvuru optagelse.dk. Ön değerlendirme 1 Eyl–1 Kas 2026 (unistart.dtu.dk). Ücret: dtu.dk (revize edilebilir).",
+      "group": "ana",
       "short": "DTU",
       "code": "dk",
       "todoItems": [
@@ -107,7 +45,7 @@ window.LIBRARY_DATA = {
         "Statement of Hours müdür imzalı (1 Eki, taranmış)",
         "Kalan: unistart.dtu.dk'ye yükleme + €100 ücret (İtalya'dan önce)"
       ],
-      "id": 5
+      "id": 2
     },
     {
       "name": "Aalto University",
@@ -119,16 +57,19 @@ window.LIBRARY_DATA = {
       "fee": "€12.000",
       "qs": "126 (eşit)",
       "the": "195 (eşit)",
-      "todo": "SAT toplam ≥ 1350 (mevcut 1250; okuma-yazma 460 → ≥ 560). Skor 29 Oca 2027'ye kadar ulaşmalı.",
+      "todo": "Karar (6 Eki): SAT'a tekrar girilecek. Toplam ≥ 1350 gerekli (mevcut 1250). Skor 29 Oca 2027'ye kadar ulaşmalı; Aralık SAT kaydı Kasım başı kapanıyor.",
       "acceptance": null,
       "note": "aalto.fi (2026 dönemi bilgisi; Eylül'de güncelleneceği yazıyor).",
+      "group": "ana",
       "short": "Aalto",
       "code": "fi",
       "todoItems": [
-        "SAT toplam ≥ 1350 (mevcut 1250; okuma-yazma 460 → ≥ 560)",
-        "Skor 29 Oca 2027'ye kadar ulaşmalı"
+        "Karar (6 Eki): SAT'a tekrar girilecek",
+        "Toplam ≥ 1350 gerekli (mevcut 1250)",
+        "Skor 29 Oca 2027'ye kadar ulaşmalı",
+        "Aralık SAT kaydı Kasım başı kapanıyor"
       ],
-      "id": 6
+      "id": 3
     },
     {
       "name": "École Polytechnique",
@@ -143,6 +84,7 @@ window.LIBRARY_DATA = {
       "todo": "Referanslar portala girildi (1 Eki): Elif Şimşek (matematik) + Halit Murat Özen (AP Calculus) – mektuplar 13 Eki'ye kadar. Kalan: belgeler, CV, €105 ücret. Hedef gönderim: 15 Eki",
       "acceptance": null,
       "note": "2. tur: 21 Eki 2026–6 Oca 2027 · 3. tur: 7 Oca–8 Şub 2027. Kaynak: programmes.polytechnique.edu · Sıralamalarda Institut Polytechnique de Paris olarak geçiyor.",
+      "group": "ana",
       "short": "Polytechnique",
       "code": "fr",
       "todoItems": [
@@ -150,7 +92,7 @@ window.LIBRARY_DATA = {
         "Kalan: belgeler, CV, €105 ücret",
         "Hedef gönderim: 15 Eki"
       ],
-      "id": 7
+      "id": 4
     },
     {
       "name": "UvA – University of Amsterdam",
@@ -165,6 +107,7 @@ window.LIBRARY_DATA = {
       "todo": "Birinci yılı tamamla; OMPT-D ≥ %70 istenebilir. Studielink 1 Eki (öğr. no 17122295). SIS'te başvuruyu tamamla + gönder: kişisel son tarih 16 Eki 2026 (UvA maili 2 Eki). Checklist: kabul, UvA Matching, okul ücreti",
       "acceptance": null,
       "note": "Hollanda ana liste #1 · QS: sayfa 60 gösteriyor, yılı açıkça yazmıyor.",
+      "group": "ana",
       "short": "UvA",
       "code": "nl",
       "todoItems": [
@@ -174,7 +117,7 @@ window.LIBRARY_DATA = {
         "SIS'te başvuruyu tamamla + gönder: kişisel son tarih 16 Eki 2026 (UvA maili 2 Eki)",
         "Checklist: kabul, UvA Matching, okul ücreti"
       ],
-      "id": 8
+      "id": 5
     },
     {
       "name": "VU Amsterdam",
@@ -189,6 +132,7 @@ window.LIBRARY_DATA = {
       "todo": "Birinci yılı tamamla (en az 1 yıllık kredi). Studielink 1 Eki (öğr. no 2944462); VU panelinde başvuruyu 6 hafta içinde (~12 Kas) %100 yap; giriş bilgileri geldi (2 Eki). Kabulden sonra onaylı diploma kopyası posta ile (en geç 31 Ağu 2027)",
       "acceptance": null,
       "note": "Hollanda ana liste #2",
+      "group": "ana",
       "short": "VU Amsterdam",
       "code": "nl",
       "todoItems": [
@@ -198,27 +142,7 @@ window.LIBRARY_DATA = {
         "Giriş bilgileri geldi (2 Eki)",
         "Kabulden sonra onaylı diploma kopyası posta ile (en geç 31 Ağu 2027)"
       ],
-      "id": 9
-    },
-    {
-      "name": "VU Amsterdam",
-      "program": "Econometrics and Operations Research (B.Sc.)",
-      "country": "Hollanda",
-      "city": "Amsterdam",
-      "open": "1 Eki 2026",
-      "close": "1 Nis 2027",
-      "fee": null,
-      "qs": "185 (eşit)",
-      "the": "176 (eşit)",
-      "todo": "Birinci yılı tamamla (en az 1 yıllık kredi)",
-      "acceptance": null,
-      "note": "Yedek (29 Eyl: ana listeden çıktı, yerine Twente IEM)",
-      "short": "VU Amsterdam",
-      "code": "nl",
-      "todoItems": [
-        "Birinci yılı tamamla (en az 1 yıllık kredi)"
-      ],
-      "id": 10
+      "id": 6
     },
     {
       "name": "TU Eindhoven (TU/e)",
@@ -233,6 +157,7 @@ window.LIBRARY_DATA = {
       "todo": "Birinci yılı tamamla (60 AKTS), ortalama ≥ 3.0/4.0. OSIRIS belge adımına kadar dolduruldu. Kalan: İÜ belgeleri, CV, €100 başvuru ücreti; pasaport 31 Ara 2027'ye kadar geçerli olmalı",
       "acceptance": null,
       "note": "Hollanda ana liste #4. Son tarih TU/e mailinden (1 Eki). Göçmenlik belgeleri/ödeme: 1 Haz 2027.",
+      "group": "ana",
       "short": "TU/e",
       "code": "nl",
       "todoItems": [
@@ -240,87 +165,7 @@ window.LIBRARY_DATA = {
         "Kalan: İÜ belgeleri, CV, €100 başvuru ücreti",
         "Pasaport 31 Ara 2027'ye kadar geçerli olmalı"
       ],
-      "id": 11
-    },
-    {
-      "name": "University of Groningen",
-      "program": "Applied Mathematics (B.Sc.)",
-      "country": "Hollanda",
-      "city": "Groningen",
-      "open": null,
-      "close": null,
-      "fee": null,
-      "qs": "157",
-      "the": "82",
-      "todo": "4. AP (sonuç 1 May'dan sonra geliyor; koşullu kabul sorulmadı)",
-      "acceptance": null,
-      "note": "Yedek. Mathematics sayfasında 1 Eki 2026–1 May 2027 ve €19.800 yazıyor; bu program için ayrıca doğrulanmadı.",
-      "short": "Groningen",
-      "code": "nl",
-      "todoItems": [
-        "4. AP (sonuç 1 May'dan sonra geliyor; koşullu kabul sorulmadı)"
-      ],
-      "id": 12
-    },
-    {
-      "name": "University of Groningen",
-      "program": "Industrial Engineering and Management (B.Sc.)",
-      "country": "Hollanda",
-      "city": "Groningen",
-      "open": null,
-      "close": null,
-      "fee": null,
-      "qs": "157",
-      "the": "82",
-      "todo": "4. AP (sonuç 1 May'dan sonra geliyor)",
-      "acceptance": null,
-      "note": "Yedek",
-      "short": "Groningen",
-      "code": "nl",
-      "todoItems": [
-        "4. AP (sonuç 1 May'dan sonra geliyor)"
-      ],
-      "id": 13
-    },
-    {
-      "name": "TU Eindhoven (TU/e)",
-      "program": "Applied Mathematics (B.Sc.)",
-      "country": "Hollanda",
-      "city": "Eindhoven",
-      "open": null,
-      "close": null,
-      "fee": null,
-      "qs": "152",
-      "the": "192 (eşit)",
-      "todo": "Birinci yılı tamamla (60 AKTS), ortalama ≥ 3.0/4.0",
-      "acceptance": null,
-      "note": "Yedek",
-      "short": "TU/e",
-      "code": "nl",
-      "todoItems": [
-        "Birinci yılı tamamla (60 AKTS), ortalama ≥ 3.0/4.0"
-      ],
-      "id": 14
-    },
-    {
-      "name": "University of Twente",
-      "program": "Applied Mathematics (B.Sc.)",
-      "country": "Hollanda",
-      "city": "Enschede",
-      "open": "Ekim 2026",
-      "close": null,
-      "fee": null,
-      "qs": "223 (eşit)",
-      "the": "190 (eşit)",
-      "todo": "Uygunluk resmi başvuruda belli olacak",
-      "acceptance": null,
-      "note": "Yedek. utwente.nl: 'Ekim'den itibaren' – kesin gün yok.",
-      "short": "Twente",
-      "code": "nl",
-      "todoItems": [
-        "Uygunluk resmi başvuruda belli olacak"
-      ],
-      "id": 15
+      "id": 7
     },
     {
       "name": "University of Twente",
@@ -335,6 +180,7 @@ window.LIBRARY_DATA = {
       "todo": "Uygunluk resmi başvuruda belli olacak. Studielink 1 Eki (öğr. no 3999971); OSIRIS anketi + €100 başvuru ücreti; İÜ belgeleri",
       "acceptance": null,
       "note": "Hollanda ana liste #3. 2027 şartları Ekim'de kontrol edilecek.",
+      "group": "ana",
       "short": "Twente",
       "code": "nl",
       "todoItems": [
@@ -343,27 +189,7 @@ window.LIBRARY_DATA = {
         "OSIRIS anketi + €100 başvuru ücreti",
         "İÜ belgeleri"
       ],
-      "id": 16
-    },
-    {
-      "name": "Tilburg University",
-      "program": "Econometrics and Operations Research (B.Sc.)",
-      "country": "Hollanda",
-      "city": "Tilburg",
-      "open": null,
-      "close": null,
-      "fee": "€13.400 (2026-27)",
-      "qs": "429",
-      "the": "301–350",
-      "todo": "VWO seviyesinde matematik kanıtı (yöntemi belirsiz)",
-      "acceptance": null,
-      "note": "Yedek. Ücret: tilburguniversity.edu",
-      "short": "Tilburg",
-      "code": "nl",
-      "todoItems": [
-        "VWO seviyesinde matematik kanıtı (yöntemi belirsiz)"
-      ],
-      "id": 17
+      "id": 8
     },
     {
       "name": "Universitat Pompeu Fabra (UPF)",
@@ -378,34 +204,14 @@ window.LIBRARY_DATA = {
       "todo": "Diploma denkliği (başvuruda kesinleşmiş olmalı; sadece volante ile yerleştirmede son sıra). PCE Matematik + Fizik (katsayı 0,2) fiilen şart: PCE'siz en fazla 10 puan",
       "acceptance": null,
       "note": "Taban puan 2025-26: 11,818 (UPF notes de tall). Katalonya ön kaydı (Generalitat). PCE kararı Nisan sonu.",
+      "group": "ana",
       "short": "UPF",
       "code": "es",
       "todoItems": [
         "Diploma denkliği (başvuruda kesinleşmiş olmalı; sadece volante ile yerleştirmede son sıra)",
         "PCE Matematik + Fizik (katsayı 0,2) fiilen şart: PCE'siz en fazla 10 puan"
       ],
-      "id": 18
-    },
-    {
-      "name": "UPF + UPC",
-      "program": "Industrial Technologies and Economic Analysis",
-      "country": "İspanya",
-      "city": "Barselona",
-      "open": null,
-      "close": null,
-      "fee": null,
-      "qs": "263 (UPF)",
-      "the": "187 (eşit) (UPF)",
-      "todo": "Diploma denkliği (kesinleşmiş). PCE Matematik + Fizik (0,2; Kimya da 0,2) fiilen şart",
-      "acceptance": null,
-      "note": "Taban puan 2025-26: 12,540 (UPF notes de tall). ETSEIB (UPC) + UPF; tamamen İngilizce; 50 kontenjan. Katalonya ön kaydı.",
-      "short": "UPF + UPC",
-      "code": "es",
-      "todoItems": [
-        "Diploma denkliği (kesinleşmiş)",
-        "PCE Matematik + Fizik (0,2; Kimya da 0,2) fiilen şart"
-      ],
-      "id": 19
+      "id": 9
     },
     {
       "name": "Universidad Carlos III de Madrid (UC3M)",
@@ -420,6 +226,7 @@ window.LIBRARY_DATA = {
       "todo": "Tamamen İngilizce, 4 yıl / 240 ECTS, 100 kontenjan. Early Admission'da Data Science ile aynı başvuru (€150, en fazla 2 bölüm). Eksik: motivation letter (zorunlu) + €150 ödeme",
       "acceptance": null,
       "note": "Taban puan 2026/27 (1. tur, 14 üzerinden): 13,322. Kaynak: uc3m.es/bachelor-degree/aeroespace + cut-off grades.",
+      "group": "ana",
       "short": "UC3M",
       "code": "es",
       "todoItems": [
@@ -427,7 +234,7 @@ window.LIBRARY_DATA = {
         "Early Admission'da Data Science ile aynı başvuru (€150, en fazla 2 bölüm)",
         "Eksik: motivation letter (zorunlu) + €150 ödeme"
       ],
-      "id": 20
+      "id": 10
     },
     {
       "name": "Universidad Carlos III de Madrid (UC3M)",
@@ -442,6 +249,7 @@ window.LIBRARY_DATA = {
       "todo": "Early Admission: PCE/UNEDasiss yok, lise diplomasına göre değerlendirme. Yüklenecek: diploma PDF (hazır), transkript, YKS + tercüme (hazır), IELTS, pasaport, motivation letter (eksik); SAT/AP ek başarı. Apostil gerekmez. Şartlı kabul: kayıttan önce denklik volantesi, denklik 1. yıl içinde",
       "acceptance": null,
       "note": "Taban puan 2026/27 (1. tur): 11,677. UC3M kabul ofisi maili (1 Eki 2026). Başvuru ücreti €150 (2 bölüme kadar); motivation letter zorunlu; dosya ≤4 MB. Hedef gönderim 7 Eki.",
+      "group": "ana",
       "short": "UC3M",
       "code": "es",
       "todoItems": [
@@ -451,7 +259,7 @@ window.LIBRARY_DATA = {
         "Apostil gerekmez",
         "Şartlı kabul: kayıttan önce denklik volantesi, denklik 1. yıl içinde"
       ],
-      "id": 21
+      "id": 11
     },
     {
       "name": "Lund University",
@@ -466,39 +274,188 @@ window.LIBRARY_DATA = {
       "todo": "Türk lise matematiğinin 'Matematik 4' denkliği (belge üzerinden değerlendiriliyor)",
       "acceptance": null,
       "note": "universityadmissions.se; belgeler 1 Şub 2027'ye kadar. Kaynak: lunduniversity.lu.se",
+      "group": "ana",
       "short": "Lund",
       "code": "se",
       "todoItems": [
         "Türk lise matematiğinin 'Matematik 4' denkliği (belge üzerinden değerlendiriliyor)"
       ],
-      "id": 22
+      "id": 12
     },
     {
-      "name": "Università di Bologna",
-      "program": "Statistical Sciences – Stats&Maths",
-      "country": "İtalya",
-      "city": "Bologna",
+      "name": "Charles University (FSV)",
+      "program": "Economics and Finance – BEF (B.A.)",
+      "country": "Çekya",
+      "city": "Prag",
+      "open": "1 Kas 2026",
+      "close": null,
+      "fee": null,
+      "qs": "273 (eşit)",
+      "the": "401–500",
+      "todo": "Yok (AP Calculus AB 5 matematik şartını karşılıyor)",
+      "acceptance": null,
+      "note": "Açılış: fsv.cuni.cz",
+      "group": "yedek",
+      "short": "Charles",
+      "code": "cz",
+      "todoItems": [
+        "Yok (AP Calculus AB 5 matematik şartını karşılıyor)"
+      ],
+      "id": 13
+    },
+    {
+      "name": "CTU – Czech Technical University",
+      "program": "Mechanical Engineering (B.Sc.)",
+      "country": "Çekya",
+      "city": "Prag",
       "open": null,
       "close": null,
       "fee": null,
-      "qs": "123 (eşit)",
-      "the": "130",
-      "todo": "İngilizce TOLC-E (€35); AB dışı kontenjan 10 kişi",
+      "qs": "432 (eşit)",
+      "the": "1201–1500",
+      "todo": "Diploma denkliği (Prag Belediyesi; fark çıkarsa denklik sınavı); matematik giriş sınavı",
       "acceptance": null,
-      "note": "2027/28 başvuru çağrısı henüz yayımlanmadı.",
-      "short": "Bologna",
-      "code": "it",
+      "note": null,
+      "group": "yedek",
+      "short": "ČVUT · CTU",
+      "code": "cz",
       "todoItems": [
-        "İngilizce TOLC-E (€35)",
-        "AB dışı kontenjan 10 kişi"
+        "Diploma denkliği (Prag Belediyesi; fark çıkarsa denklik sınavı)",
+        "Matematik giriş sınavı"
       ],
-      "id": 23
+      "id": 14
+    },
+    {
+      "name": "VU Amsterdam",
+      "program": "Econometrics and Operations Research (B.Sc.)",
+      "country": "Hollanda",
+      "city": "Amsterdam",
+      "open": "1 Eki 2026",
+      "close": "1 Nis 2027",
+      "fee": null,
+      "qs": "185 (eşit)",
+      "the": "176 (eşit)",
+      "todo": "Birinci yılı tamamla (en az 1 yıllık kredi)",
+      "acceptance": null,
+      "note": "Yedek (29 Eyl: ana listeden çıktı, yerine Twente IEM)",
+      "group": "yedek",
+      "short": "VU Amsterdam",
+      "code": "nl",
+      "todoItems": [
+        "Birinci yılı tamamla (en az 1 yıllık kredi)"
+      ],
+      "id": 15
+    },
+    {
+      "name": "University of Groningen",
+      "program": "Applied Mathematics (B.Sc.)",
+      "country": "Hollanda",
+      "city": "Groningen",
+      "open": null,
+      "close": null,
+      "fee": null,
+      "qs": "157",
+      "the": "82",
+      "todo": "4. AP (sonuç 1 May'dan sonra geliyor; koşullu kabul sorulmadı)",
+      "acceptance": null,
+      "note": "Yedek. Mathematics sayfasında 1 Eki 2026–1 May 2027 ve €19.800 yazıyor; bu program için ayrıca doğrulanmadı.",
+      "group": "yedek",
+      "short": "Groningen",
+      "code": "nl",
+      "todoItems": [
+        "4. AP (sonuç 1 May'dan sonra geliyor; koşullu kabul sorulmadı)"
+      ],
+      "id": 16
+    },
+    {
+      "name": "University of Groningen",
+      "program": "Industrial Engineering and Management (B.Sc.)",
+      "country": "Hollanda",
+      "city": "Groningen",
+      "open": null,
+      "close": null,
+      "fee": null,
+      "qs": "157",
+      "the": "82",
+      "todo": "4. AP (sonuç 1 May'dan sonra geliyor)",
+      "acceptance": null,
+      "note": "Yedek",
+      "group": "yedek",
+      "short": "Groningen",
+      "code": "nl",
+      "todoItems": [
+        "4. AP (sonuç 1 May'dan sonra geliyor)"
+      ],
+      "id": 17
+    },
+    {
+      "name": "TU Eindhoven (TU/e)",
+      "program": "Applied Mathematics (B.Sc.)",
+      "country": "Hollanda",
+      "city": "Eindhoven",
+      "open": null,
+      "close": null,
+      "fee": null,
+      "qs": "152",
+      "the": "192 (eşit)",
+      "todo": "Birinci yılı tamamla (60 AKTS), ortalama ≥ 3.0/4.0",
+      "acceptance": null,
+      "note": "Yedek",
+      "group": "yedek",
+      "short": "TU/e",
+      "code": "nl",
+      "todoItems": [
+        "Birinci yılı tamamla (60 AKTS), ortalama ≥ 3.0/4.0"
+      ],
+      "id": 18
+    },
+    {
+      "name": "University of Twente",
+      "program": "Applied Mathematics (B.Sc.)",
+      "country": "Hollanda",
+      "city": "Enschede",
+      "open": "Ekim 2026",
+      "close": null,
+      "fee": null,
+      "qs": "223 (eşit)",
+      "the": "190 (eşit)",
+      "todo": "Uygunluk resmi başvuruda belli olacak",
+      "acceptance": null,
+      "note": "Yedek. utwente.nl: 'Ekim'den itibaren' – kesin gün yok.",
+      "group": "yedek",
+      "short": "Twente",
+      "code": "nl",
+      "todoItems": [
+        "Uygunluk resmi başvuruda belli olacak"
+      ],
+      "id": 19
+    },
+    {
+      "name": "Tilburg University",
+      "program": "Econometrics and Operations Research (B.Sc.)",
+      "country": "Hollanda",
+      "city": "Tilburg",
+      "open": null,
+      "close": null,
+      "fee": "€13.400 (2026-27)",
+      "qs": "429",
+      "the": "301–350",
+      "todo": "VWO seviyesinde matematik kanıtı (yöntemi belirsiz)",
+      "acceptance": null,
+      "note": "Yedek. Ücret: tilburguniversity.edu",
+      "group": "yedek",
+      "short": "Tilburg",
+      "code": "nl",
+      "todoItems": [
+        "VWO seviyesinde matematik kanıtı (yöntemi belirsiz)"
+      ],
+      "id": 20
     }
   ],
   "notes": [
     "Sarı hücreler: boş bırakıldı, senin doldurman için. Sadece üniversitelerin kendi sitelerinden doğrulanan bilgiler yazıldı.",
     "QS 2027 ve THE 2026 (en güncel) sıraları topuniversities.com ve timeshighereducation.com üniversite sayfalarından. '(eşit)' = başka üniversiteyle aynı sırayı paylaşıyor. Tahmini kabul oranı boş.",
     "Ücretler 2026-27 yılına ait; 2027-28'de artabilir.",
-    "Son güncelleme: 1 Ekim 2026"
+    "Son güncelleme: 6 Ekim 2026 (liste 10 üniversiteye indirildi; Bologna, TUM, UPF+UPC çıkarıldı)"
   ]
 };
