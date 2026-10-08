@@ -13,7 +13,11 @@ Raflardaki her kitap bir üniversite/bölüm; kitaba tıklayınca uçarak önün
 
 ## Kontroller
 - Sürükle: etrafına bak · Tekerlek / iki parmak: yakınlaş
+- Yürü: W A S D ya da ok tuşları (Shift ile koş) · telefonda sol alttaki çubuk · yere tıkla/dokun: oraya yürü
 - Kitaba tıkla: aç · ← → : önceki/sonraki kitap · Esc: rafa koy
-- Katalog: arama, yaklaşan tarihler, ülkeye göre liste
+- Katalog: arama, yaklaşan tarihler, ana liste / yedekler (seçilen kitabın önüne yürür ve açar)
+- Manzara: cam duvarın dışındaki görüntü (Alpler, Norveç Fiyordu, Okyanusun Dibi, Bulutların Üstü, Yörünge)
+- Ses: seçili manzaranın ortam sesi ve sayfa sesleri
 - Kitapların üstündeki renkli sekme: kırmızı = 3 haftadan az kaldı, yeşil = açık, sarı = açılacak, gri = kapandı
 - "Eksiklerim" maddeleri işaretlenebilir (yalnızca o tarayıcıda saklanır)
+- Koltuktaki kediye tıklayabilirsin
