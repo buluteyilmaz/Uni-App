@@ -94,6 +94,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .view-menu button[aria-checked="true"] { background: rgba(240, 214, 142, .12); border-color: rgba(240, 214, 142, .45); }
 .view-menu b { font: italic 600 1.15rem/1.1 var(--f-display); color: var(--gold-hi); }
 .view-menu span { font: .82rem/1.3 var(--f-body); color: var(--hud-dim); }
+.mapview { position: fixed; inset: 0; z-index: 16; display: grid; place-items: center; padding: 16px; background: rgba(6, 4, 3, .86); }
+.mapview img { max-width: calc(100vw - 32px); max-height: calc(100vh - 32px); width: auto; height: auto; box-shadow: 0 30px 80px rgba(0,0,0,.6); border-radius: 2px; }
+.mapview-close { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 14px); right: 16px; width: 42px; height: 42px; border-radius: 50%; background: #2a1d15; }
 .fade { position: fixed; inset: 0; z-index: 9; background: #000; opacity: 0; pointer-events: none; transition: opacity .45s ease; }
 .fade.on { opacity: 1; }
 .joy {
@@ -369,6 +372,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 <div class="plate view-menu" id="viewMenu" role="menu" aria-label="Manzara seç" hidden></div>
 <div class="fade" id="fade"></div>
+<div class="mapview" id="mapView" hidden role="dialog" aria-modal="true" aria-label="Avrupa başvuru haritası">
+  <img id="mapImg" alt="Avrupa haritası: başvurulan ülkeler ve şehirler işaretli">
+  <button class="plate icon-btn mapview-close" aria-label="Haritayı kapat"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+</div>
 <div class="joy" id="joy" hidden aria-hidden="true"><div class="joy-knob" id="joyKnob"></div></div>
 <div class="plate legend" aria-label="Kitapların üstündeki renkli sekmeler">
   <span><i style="background:var(--urgent)"></i>3 haftadan az</span>
@@ -402,10 +409,12 @@ button { font: inherit; color: inherit; cursor: pointer; }
 </div>
 
 <script src="data.js"></script>
+<script src="harita.js"></script>
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
 <script type="module">
 import * as THREE from 'three';
 import { Water } from 'three/addons/objects/Water.js';
+import { Sky } from 'three/addons/objects/Sky.js';
 
 /* =========================================================================
    VERİ & TARİH YARDIMCILARI
@@ -1070,42 +1079,148 @@ function makeUniBook(u, th, h, d) {
   return mesh;
 }
 
-/* Avrupa haritası (eski usul, şehirler noktalı) */
+/* Avrupa haritası: Natural Earth ülke sınırları (harita.js), başvurulan ülkeler ve şehirler işaretli */
 const CITY_COORDS = {
   'Münih': [48.14, 11.58], 'Leuven': [50.88, 4.70], 'Prag': [50.08, 14.43], 'Kongens Lyngby': [55.78, 12.50], 'Espoo': [60.20, 24.65],
   'Palaiseau': [48.71, 2.25], 'Amsterdam': [52.37, 4.90], 'Eindhoven': [51.44, 5.48], 'Groningen': [53.22, 6.57], 'Enschede': [52.22, 6.89],
   'Tilburg': [51.56, 5.09], 'Barselona': [41.39, 2.17], 'Madrid': [40.33, -3.76], 'Lund': [55.70, 13.19], 'Bologna': [44.49, 11.34],
 };
+const CITY_LABEL = { 'Kongens Lyngby': 'Lyngby (Kopenhag)', 'Palaiseau': 'Palaiseau (Paris)' };
+// etiket yönü: [dx, dy, hizalama]
+const CITY_ANCHOR = { 'Kongens Lyngby': [-16, 34, 'right'], 'Lund': [16, 10, 'left'], 'Palaiseau': [-16, 8, 'right'], 'Madrid': [16, 8, 'left'], 'Barselona': [16, 8, 'left'], 'Prag': [16, -14, 'left'], 'Espoo': [-16, 8, 'right'], 'Bologna': [16, 8, 'left'], 'Münih': [16, 8, 'left'] };
+const COUNTRY_EN = { 'Almanya': 'Germany', 'Belçika': 'Belgium', 'Çekya': 'Czechia', 'Danimarka': 'Denmark', 'Finlandiya': 'Finland', 'Fransa': 'France', 'Hollanda': 'Netherlands', 'İspanya': 'Spain', 'İsveç': 'Sweden', 'İtalya': 'Italy' };
+const COUNTRY_LABEL_AT = { 'Fransa': [2.3, 46.4], 'İspanya': [-4.3, 38.1], 'Çekya': [15.9, 48.95], 'Danimarka': [9.1, 56.45], 'İsveç': [15.2, 62.6], 'Finlandiya': [26.8, 64.2], 'Almanya': [10.2, 51.0], 'İtalya': [12.6, 42.7] };
+const INSET = { lon0: 2.6, lon1: 7.6, lat0: 50.25, lat1: 53.7 };
 function cityCoord(city) { if (!city) return null; const k = Object.keys(CITY_COORDS).find(k => city.startsWith(k)); return k ? [k, CITY_COORDS[k]] : null; }
-function drawMap(c, w, h) {
-  c.fillStyle = '#d9c597'; c.fillRect(0, 0, w, h);
-  const vg = c.createRadialGradient(w / 2, h / 2, 100, w / 2, h / 2, w * 0.7); vg.addColorStop(0, 'rgba(255,245,215,.35)'); vg.addColorStop(1, 'rgba(90,55,20,.55)');
-  c.fillStyle = vg; c.fillRect(0, 0, w, h); grain(c, w, h, 16000, 0.08, 0.06);
-  const lon0 = -8, lon1 = 30, lat0 = 37, lat1 = 63;
-  const P = (lat, lon) => [60 + (lon - lon0) / (lon1 - lon0) * (w - 120), 60 + (lat1 - lat) / (lat1 - lat0) * (h - 150)];
-  c.strokeStyle = 'rgba(90,60,25,.25)'; c.lineWidth = 1;
-  for (let lo = -5; lo <= 30; lo += 5) { const [x] = P(0, lo); c.beginPath(); c.moveTo(x, 50); c.lineTo(x, h - 80); c.stroke(); }
-  for (let la = 40; la <= 60; la += 5) { const [, y] = P(la, 0); c.beginPath(); c.moveTo(50, y); c.lineTo(w - 50, y); c.stroke(); }
-  c.strokeStyle = 'rgba(70,40,15,.7)'; c.lineWidth = 3; c.strokeRect(24, 24, w - 48, h - 48); c.lineWidth = 1; c.strokeRect(34, 34, w - 68, h - 68);
-  // pusula gülü
-  c.save(); c.translate(w - 130, h - 190); c.fillStyle = 'rgba(110,30,30,.75)';
-  for (let k = 0; k < 4; k++) { c.rotate(Math.PI / 2); c.beginPath(); c.moveTo(0, -62); c.lineTo(10, 0); c.lineTo(-10, 0); c.fill(); }
-  c.fillStyle = 'rgba(60,40,15,.6)'; c.rotate(Math.PI / 4); for (let k = 0; k < 4; k++) { c.rotate(Math.PI / 2); c.beginPath(); c.moveTo(0, -36); c.lineTo(6, 0); c.lineTo(-6, 0); c.fill(); }
-  c.restore(); c.font = `700 22px ${LABEL}`; c.fillStyle = 'rgba(70,40,15,.85)'; c.textAlign = 'center'; c.fillText('K', w - 130, h - 262);
-  const seen = new Map();
-  for (const u of UNIS) { const cc = cityCoord(u.city); if (!cc) continue; const [name, ll] = cc; if (!seen.has(name)) seen.set(name, { ll, unis: [] }); seen.get(name).unis.push(u); }
-  for (const [name, { ll, unis }] of seen) {
-    const [x, y] = P(...ll);
-    c.fillStyle = '#8b1d24'; c.beginPath(); c.arc(x, y, 7, 0, 7); c.fill();
-    c.strokeStyle = 'rgba(60,20,10,.8)'; c.lineWidth = 2; c.beginPath(); c.arc(x, y, 11, 0, 7); c.stroke();
-    c.font = `italic 600 23px ${DISPLAY}`; c.fillStyle = '#3a240c'; c.textAlign = 'left';
-    const right = !['Tilburg', 'Eindhoven', 'Leuven', 'Amsterdam'].includes(name);
-    c.textAlign = right ? 'left' : 'right';
-    c.fillText(name, x + (right ? 16 : -16), y + 7);
+function citiesWithUnis() {
+  const m = new Map();
+  for (const u of UNIS) {
+    const cc = cityCoord(u.city); if (!cc) continue;
+    const [name, ll] = cc;
+    if (!m.has(name)) m.set(name, { name, ll, unis: [] });
+    m.get(name).unis.push(u);
   }
-  c.textAlign = 'center'; c.font = `italic 600 46px ${DISPLAY}`; c.fillStyle = '#3a240c';
-  c.fillText('Tabula Applicationum', w / 2, h - 66);
-  c.font = `700 18px ${LABEL}`; c.fillStyle = 'rgba(58,36,12,.75)'; c.fillText('AVRUPA · BAŞVURU HARİTASI · 2027', w / 2, h - 40);
+  return [...m.values()];
+}
+function laea(lat0, lon0) {
+  const r = Math.PI / 180, s0 = Math.sin(lat0 * r), c0 = Math.cos(lat0 * r);
+  return (lat, lon) => {
+    const p = lat * r, l = (lon - lon0) * r, cp = Math.cos(p), sp = Math.sin(p), cl = Math.cos(l);
+    const k = Math.sqrt(2 / (1 + s0 * sp + c0 * cp * cl));
+    return [k * cp * Math.sin(l), -k * (c0 * sp - s0 * cp * cl)];
+  };
+}
+function drawMap(c, w, h) {
+  const geo = window.EUROPE_GEO || [];
+  const applied = new Set(UNIS.map(u => COUNTRY_EN[u.country]).filter(Boolean));
+  const cities = citiesWithUnis();
+  // izdüşüm: Lambert eşalan, merkez Orta Avrupa
+  const proj = laea(52, 11);
+  const ext = []; for (let lat = 35; lat <= 66; lat += 1) for (const lon of [-11, 33]) ext.push(proj(lat, lon)); for (let lon = -11; lon <= 33; lon += 1) for (const lat of [35, 66]) ext.push(proj(lat, lon));
+  const xs = ext.map(p => p[0]), ys = ext.map(p => p[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const pad = 40, sc = Math.min((w - 2 * pad) / (x1 - x0), (h - 2 * pad) / (y1 - y0));
+  const ox = (w - (x1 - x0) * sc) / 2, oy = (h - (y1 - y0) * sc) / 2;
+  const P = (lat, lon) => { const [x, y] = proj(lat, lon); return [ox + (x - x0) * sc, oy + (y - y0) * sc]; };
+  // deniz
+  const sea = c.createLinearGradient(0, 0, w, h); sea.addColorStop(0, '#9fb6b2'); sea.addColorStop(1, '#b9c8bd');
+  c.fillStyle = sea; c.fillRect(0, 0, w, h);
+  grain(c, w, h, Math.floor(w * h / 60), 0.05, 0.05);
+  const path = (ring, Pf) => { c.beginPath(); for (let i = 0; i < ring.length; i += 2) { const [x, y] = Pf(ring[i + 1], ring[i]); i ? c.lineTo(x, y) : c.moveTo(x, y); } c.closePath(); };
+  // kıyı çevresinde açık su halkası
+  c.save(); c.strokeStyle = 'rgba(225,235,225,.35)'; c.lineWidth = 16; c.lineJoin = 'round';
+  for (const f of geo) for (const r of f.r) { path(r, P); c.stroke(); }
+  c.restore();
+  // paralel/meridyenler
+  c.strokeStyle = 'rgba(70,60,40,.18)'; c.lineWidth = 1.2;
+  for (let lon = -20; lon <= 40; lon += 5) { c.beginPath(); for (let lat = 30; lat <= 72; lat += 1) { const [x, y] = P(lat, lon); lat === 30 ? c.moveTo(x, y) : c.lineTo(x, y); } c.stroke(); }
+  for (let lat = 35; lat <= 70; lat += 5) { c.beginPath(); for (let lon = -25; lon <= 45; lon += 1) { const [x, y] = P(lat, lon); lon === -25 ? c.moveTo(x, y) : c.lineTo(x, y); } c.stroke(); }
+  // kara ve ülkeler
+  for (const f of geo) {
+    const on = applied.has(f.n);
+    for (const r of f.r) { path(r, P); c.fillStyle = on ? '#dfb479' : '#eadbb4'; c.fill(); }
+  }
+  grain(c, w, h, Math.floor(w * h / 90), 0.04, 0.03);
+  c.lineJoin = 'round';
+  for (const f of geo) for (const r of f.r) { path(r, P); c.strokeStyle = 'rgba(95,70,40,.55)'; c.lineWidth = 1.3; c.stroke(); }
+  for (const f of geo) if (applied.has(f.n)) for (const r of f.r) { path(r, P); c.strokeStyle = 'rgba(120,45,25,.85)'; c.lineWidth = 2.4; c.stroke(); }
+  // ülke adları
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  for (const [tr, en] of Object.entries(COUNTRY_EN)) {
+    if (!applied.has(en) || !COUNTRY_LABEL_AT[tr]) continue;
+    const [lon, lat] = COUNTRY_LABEL_AT[tr]; const [x, y] = P(lat, lon);
+    c.font = `700 ${Math.round(w / 60)}px ${LABEL}`; c.fillStyle = 'rgba(110,45,25,.55)';
+    c.fillText(tr.toLocaleUpperCase('tr').split('').join(' '), x, y);
+  }
+  // Benelüks ayrıntı kutusunun ana haritadaki yeri
+  const [ix0, iy0] = P(INSET.lat1, INSET.lon0), [ix1, iy1] = P(INSET.lat0, INSET.lon1);
+  c.setLineDash([10, 7]); c.strokeStyle = 'rgba(90,30,20,.85)'; c.lineWidth = 2.5; c.strokeRect(ix0, iy0, ix1 - ix0, iy1 - iy0); c.setLineDash([]);
+  // şehirler
+  const inInset = ll => ll[1] >= INSET.lon0 && ll[1] <= INSET.lon1 && ll[0] >= INSET.lat0 && ll[0] <= INSET.lat1;
+  const dot = (x, y, r) => {
+    c.fillStyle = '#8b1d24'; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
+    c.strokeStyle = '#fff4dc'; c.lineWidth = r * 0.35; c.beginPath(); c.arc(x, y, r * 0.42, 0, 7); c.stroke();
+    c.strokeStyle = 'rgba(60,20,10,.9)'; c.lineWidth = 2; c.beginPath(); c.arc(x, y, r + 3, 0, 7); c.stroke();
+  };
+  const label = (x, y, name, sub, anchor, fs) => {
+    const [dx, dy, al] = anchor;
+    c.textAlign = al; c.textBaseline = 'alphabetic';
+    c.font = `italic 700 ${fs}px ${DISPLAY}`;
+    c.lineWidth = fs * 0.28; c.strokeStyle = 'rgba(245,235,210,.85)'; c.strokeText(name, x + dx, y + dy);
+    c.fillStyle = '#2d1a0a'; c.fillText(name, x + dx, y + dy);
+    c.font = `700 ${Math.round(fs * 0.6)}px ${LABEL}`;
+    c.strokeText(sub, x + dx, y + dy + fs * 0.78); c.fillStyle = '#7a2a1c'; c.fillText(sub, x + dx, y + dy + fs * 0.78);
+  };
+  const subOf = cty => { const m = new Map(); cty.unis.forEach(u => m.set(u.short, (m.get(u.short) || 0) + 1)); if (m.size === 1 && [...m.keys()][0] === cty.name) { const n = cty.unis.length; return n > 1 ? `${n} program` : ''; } return [...m].map(([k, n]) => n > 1 ? `${k} ×${n}` : k).join(', '); };
+  const fs = Math.round(w / 40);
+  for (const cty of cities) {
+    const [x, y] = P(...cty.ll);
+    if (inInset(cty.ll)) { dot(x, y, 6); continue; }
+    dot(x, y, 10);
+    label(x, y, CITY_LABEL[cty.name] || cty.name, subOf(cty), CITY_ANCHOR[cty.name] || [16, 8, 'left'], fs);
+  }
+  // Benelüks ayrıntı kutusu (sağ alt, Akdeniz'in doğusunun üstünde)
+  const bw = w * 0.34, bh = h * 0.38, bx = w - bw - 30, by = h - bh - 30;
+  const ilat = (INSET.lat0 + INSET.lat1) / 2, kx = Math.cos(ilat * Math.PI / 180);
+  const isc = Math.min((bw - 40) / ((INSET.lon1 - INSET.lon0) * kx), (bh - 90) / (INSET.lat1 - INSET.lat0));
+  const iw = (INSET.lon1 - INSET.lon0) * kx * isc, ih = (INSET.lat1 - INSET.lat0) * isc;
+  const iox = bx + (bw - iw) / 2, ioy = by + 60 + (bh - 80 - ih) / 2;
+  const IP = (lat, lon) => [iox + (lon - INSET.lon0) * kx * isc, ioy + (INSET.lat1 - lat) * isc];
+  c.save();
+  c.shadowColor = 'rgba(40,25,10,.45)'; c.shadowBlur = 18; c.fillStyle = '#b4c5bc'; c.fillRect(bx, by, bw, bh); c.shadowBlur = 0;
+  c.beginPath(); c.rect(bx, by + 52, bw, bh - 52); c.clip();
+  for (const f of geo) { for (const r of f.r) { path(r, IP); c.fillStyle = applied.has(f.n) ? '#dfb479' : '#eadbb4'; c.fill(); c.strokeStyle = 'rgba(95,70,40,.6)'; c.lineWidth = 1.5; c.stroke(); } }
+  const ifs = Math.round(w / 48);
+  const IN_ANCHOR = { 'Amsterdam': [-14, -8, 'right'], 'Tilburg': [-14, 2, 'right'], 'Eindhoven': [14, 10, 'left'], 'Groningen': [14, 6, 'left'], 'Enschede': [14, 8, 'left'], 'Leuven': [14, 8, 'left'] };
+  for (const cty of cities) {
+    if (!inInset(cty.ll)) continue;
+    const [x, y] = IP(...cty.ll); dot(x, y, 8);
+    label(x, y, cty.name, subOf(cty), IN_ANCHOR[cty.name] || [14, 8, 'left'], ifs);
+  }
+  c.restore();
+  c.fillStyle = '#efe2c2'; c.fillRect(bx, by, bw, 52);
+  c.strokeStyle = '#5d4630'; c.lineWidth = 4; c.strokeRect(bx, by, bw, bh); c.lineWidth = 1.5; c.strokeRect(bx + 7, by + 7, bw - 14, bh - 14);
+  c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#3a240c'; c.font = `700 ${Math.round(w / 64)}px ${LABEL}`;
+  c.fillText('HOLLANDA & BELÇİKA · AYRINTI', bx + bw / 2, by + 30);
+  // başlık kartuşu (sol üst, Atlas Okyanusu)
+  const tw = w * 0.34, th = h * 0.2, tx = 34, ty = 34;
+  c.fillStyle = 'rgba(244,234,208,.94)'; c.fillRect(tx, ty, tw, th);
+  c.strokeStyle = '#5d4630'; c.lineWidth = 4; c.strokeRect(tx, ty, tw, th); c.lineWidth = 1.5; c.strokeRect(tx + 8, ty + 8, tw - 16, th - 16);
+  c.textAlign = 'center'; c.fillStyle = '#3a240c';
+  c.font = `italic 600 ${Math.round(w / 28)}px ${DISPLAY}`; c.fillText('Tabula Applicationum', tx + tw / 2, ty + th * 0.3);
+  c.font = `700 ${Math.round(w / 70)}px ${LABEL}`; c.fillText('AVRUPA · BAŞVURU HARİTASI · 2027', tx + tw / 2, ty + th * 0.52);
+  // açıklama
+  c.textAlign = 'left'; c.font = `600 ${Math.round(w / 64)}px ${DISPLAY}`;
+  dot(tx + 40, ty + th * 0.76, 8); c.fillStyle = '#2d1a0a'; c.fillText('başvuru yapılan şehir', tx + 62, ty + th * 0.76 + 6);
+  c.fillStyle = '#dfb479'; c.fillRect(tx + tw * 0.55, ty + th * 0.76 - 11, 28, 20); c.strokeStyle = 'rgba(120,45,25,.85)'; c.lineWidth = 2; c.strokeRect(tx + tw * 0.55, ty + th * 0.76 - 11, 28, 20);
+  c.fillStyle = '#2d1a0a'; c.fillText('başvurulan ülke', tx + tw * 0.55 + 38, ty + th * 0.76 + 6);
+  // pusula gülü (sol alt, Atlas Okyanusu)
+  c.save(); c.translate(120, h - 150); c.fillStyle = 'rgba(110,30,30,.8)';
+  for (let k = 0; k < 4; k++) { c.rotate(Math.PI / 2); c.beginPath(); c.moveTo(0, -70); c.lineTo(12, 0); c.lineTo(-12, 0); c.fill(); }
+  c.fillStyle = 'rgba(60,40,15,.6)'; c.rotate(Math.PI / 4); for (let k = 0; k < 4; k++) { c.rotate(Math.PI / 2); c.beginPath(); c.moveTo(0, -42); c.lineTo(7, 0); c.lineTo(-7, 0); c.fill(); }
+  c.restore(); c.font = `700 30px ${LABEL}`; c.fillStyle = 'rgba(70,40,15,.9)'; c.textAlign = 'center'; c.fillText('K', 120, h - 232);
+  // çerçeve
+  c.strokeStyle = 'rgba(70,40,15,.8)'; c.lineWidth = 6; c.strokeRect(10, 10, w - 20, h - 20);
 }
 
 /* ---- Avize, masa, toz ---- */
@@ -1188,6 +1303,8 @@ function buildFillers() {
 
 /* =========================================================================
    CAM DUVAR VE MANZARALAR
+   Dağ ve fiyort: ekran uzayında ışın izlenen (raymarching) arazi, gölge, bulut, atmosfer ve su yansıması.
+   Açık deniz: fiziksel gökyüzü (Preetham) + yansıtan okyanus. Yörünge: gerçek kıta verisiyle Dünya.
    ========================================================================= */
 const GLSL_NOISE = `
 float hash12(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * .1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
@@ -1214,31 +1331,256 @@ const GLSL_OUT = `
 #include <colorspace_fragment>`;
 const col3 = c => new THREE.Color(c);
 const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+const softDotTex = canvasTex(64, 64, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.4, 'rgba(255,255,255,.5)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
+const spriteTex = (size, draw) => canvasTex(size, size, draw);
 
-/* ---- gökyüzü kubbesi (bütün manzaralar paylaşır) ---- */
+/* ---- ışın izlenen arka plan (dağ / fiyort) ---- */
+const BACKDROP_FS = `
+precision highp float;
+varying vec2 vUv;
+uniform mat4 uInvProj, uCamRot;
+uniform vec3 uCamPos, uSun;
+uniform float uTime, uExposure, uSunPower, uFog, uMist, uMistH, uWater, uCloudCover, uSnowLine, uTreeLine, uRoomR;
+uniform vec4 uTerr;
+uniform vec3 uSkyTop, uSkyHor;
+
+float hash1(vec2 p){ p = 50.0*fract(p*0.3183099 + vec2(0.71,0.113)); return -1.0+2.0*fract(p.x*p.y*(p.x+p.y)); }
+vec3 noised(vec2 x){
+  vec2 p = floor(x); vec2 w = fract(x);
+  vec2 u = w*w*w*(w*(w*6.0-15.0)+10.0); vec2 du = 30.0*w*w*(w*(w-2.0)+1.0);
+  float a = hash1(p), b = hash1(p+vec2(1,0)), c = hash1(p+vec2(0,1)), d = hash1(p+vec2(1,1));
+  float k1 = b-a, k2 = c-a, k4 = a-b-c+d;
+  return vec3(a + k1*u.x + k2*u.y + k4*u.x*u.y, du*vec2(k1 + k4*u.y, k2 + k4*u.x));
+}
+const mat2 m2 = mat2(0.80, 0.60, -0.60, 0.80);
+float fbm(vec2 p, int oct){ float f = 0.0, a = 0.5; for (int i = 0; i < 8; i++) { if (i >= oct) break; f += a*noised(p).x; p = m2*p*2.02; a *= 0.5; } return f; }
+float erosion(vec2 p, int oct){
+  vec2 q = p*0.00042; float a = 0.0, b = 1.0; vec2 d = vec2(0.0);
+  for (int i = 0; i < 14; i++) { if (i >= oct) break; vec3 n = noised(q); d += n.yz; a += b*n.x/(1.0 + dot(d, d)); b *= 0.5; q = m2*q*2.0; }
+  return a;
+}
+float terrain(vec2 p, int oct){
+  float n = erosion(p, oct);
+  float w = 1900.0 + max(p.y, 0.0)*0.2;
+  float side = smoothstep(0.35*w, 1.5*w, abs(p.x + 450.0*sin(p.y*0.00023)));
+  float far = smoothstep(9000.0, 21000.0, p.y);
+  float m = max(side, far*0.85);
+  float h = mix(uTerr.x, uTerr.y, m) + n*mix(uTerr.z*0.35, uTerr.z, m);
+  float spur = exp(-(p.x*p.x + (p.y + 250.0)*(p.y + 250.0))/(800.0*800.0));
+  return mix(h, uTerr.w + n*60.0, spur);
+}
+float march(vec3 ro, vec3 rd, float tmax, int steps, int oct){
+  float t = 2.0;
+  for (int i = 0; i < 260; i++) {
+    if (i >= steps) break;
+    vec3 p = ro + rd*t; float h = p.y - terrain(p.xz, oct);
+    if (h < 0.002*t || t > tmax) break;
+    if (p.y > 4600.0 && rd.y > 0.0) { t = tmax + 1.0; break; }
+    t += 0.42*h*(1.0 + t*0.00002);
+  }
+  return t;
+}
+vec3 calcNormal(vec3 p, float t){
+  float e = 0.0012*t + 0.6;
+  return normalize(vec3(terrain(p.xz - vec2(e, 0.0), 12) - terrain(p.xz + vec2(e, 0.0), 12), 2.0*e,
+                        terrain(p.xz - vec2(0.0, e), 12) - terrain(p.xz + vec2(0.0, e), 12)));
+}
+float softShadow(vec3 ro, vec3 rd){
+  float res = 1.0, t = 6.0;
+  for (int i = 0; i < 36; i++) {
+    vec3 p = ro + rd*t; float h = p.y - terrain(p.xz, 7);
+    res = min(res, 14.0*h/t); t += clamp(h, 12.0, 320.0);
+    if (res < 0.002 || p.y > 4600.0) break;
+  }
+  return clamp(res, 0.0, 1.0);
+}
+float cloudDen(vec2 p){
+  p += uTime*vec2(14.0, 6.0);
+  float f = fbm(p*0.00022, 6) + 0.25*fbm(p*0.0011 + uTime*0.002, 3);
+  return smoothstep(0.0, 0.55, f + uCloudCover);
+}
+vec3 sky(vec3 ro, vec3 rd){
+  float sd = max(dot(rd, uSun), 0.0);
+  vec3 col = mix(uSkyHor, uSkyTop, pow(max(rd.y, 0.0), 0.55));
+  col += vec3(1.0, 0.72, 0.45)*(0.22*pow(sd, 5.0) + 0.35*pow(sd, 64.0)) + vec3(1.0, 0.92, 0.75)*14.0*pow(sd, 1800.0);
+  if (rd.y > 0.0) {
+    float t = (3600.0 - ro.y)/rd.y; vec2 cp = ro.xz + rd.xz*t;
+    float d = cloudDen(cp), dl = cloudDen(cp + uSun.xz*160.0);
+    float lit = clamp(0.65 - (dl - d)*2.2, 0.0, 1.0);
+    vec3 cc = mix(vec3(0.42, 0.45, 0.52), vec3(1.15, 1.08, 1.0), lit);
+    cc += vec3(1.0, 0.75, 0.45)*pow(sd, 6.0)*0.8*(1.0 - d);
+    col = mix(col, cc, d*exp(-t*0.00003)*0.97);
+  }
+  col = mix(col, uSkyHor*1.05, pow(1.0 - max(rd.y, 0.0), 14.0));
+  return col;
+}
+vec3 shade(vec3 pos, vec3 rd, float t, bool cheap){
+  vec3 n = calcNormal(pos, t);
+  float nz = fbm(pos.xz*0.0035, 4);
+  float alt = pos.y;
+  vec3 rock = mix(vec3(0.075, 0.068, 0.062), vec3(0.17, 0.15, 0.13), 0.5 + 0.5*nz);
+  rock *= 0.75 + 0.5*(0.5 + 0.5*fbm(pos.xz*0.04, 3));
+  float flatness = smoothstep(0.5, 0.85, n.y);
+  float veg = flatness*(1.0 - smoothstep(uTreeLine - 250.0 + nz*250.0, uTreeLine + 150.0 + nz*250.0, alt));
+  vec3 grass = mix(vec3(0.05, 0.075, 0.022), vec3(0.13, 0.15, 0.05), smoothstep(-0.3, 0.5, nz));
+  float forest = smoothstep(-0.05, 0.25, fbm(pos.xz*0.009, 4))*smoothstep(uTreeLine - 150.0, uTreeLine - 700.0, alt);
+  grass = mix(grass, vec3(0.018, 0.032, 0.014), forest*0.85);
+  vec3 col = mix(rock, grass, veg);
+  float snow = smoothstep(uSnowLine - 150.0, uSnowLine + 250.0, alt + nz*380.0)*smoothstep(0.32, 0.62, n.y + 0.18*nz);
+  col = mix(col, vec3(0.64, 0.68, 0.74), snow);
+  float dif = clamp(dot(n, uSun), 0.0, 1.0);
+  float sha = (cheap || dif < 0.001) ? (cheap ? 0.85 : 0.0) : softShadow(pos + n*3.0, uSun);
+  float ct = (3600.0 - pos.y)/max(uSun.y, 0.06);
+  float cs = 1.0 - 0.7*cloudDen(pos.xz + uSun.xz*ct);
+  float amb = clamp(0.5 + 0.5*n.y, 0.0, 1.0);
+  float bac = clamp(0.2 + 0.8*dot(normalize(vec3(-uSun.x, 0.0, -uSun.z)), n), 0.0, 1.0);
+  vec3 lin = dif*sha*cs*vec3(8.0, 6.6, 4.8)*uSunPower + amb*uSkyTop*1.6 + bac*vec3(0.28, 0.26, 0.2)*0.6;
+  col *= lin;
+  vec3 hal = normalize(uSun - rd);
+  col += snow*sha*cs*pow(clamp(dot(n, hal), 0.0, 1.0), 28.0)*vec3(1.0, 0.92, 0.82)*1.2;
+  return col;
+}
+vec3 applyFog(vec3 col, vec3 ro, vec3 rd, float t){
+  float sd = max(dot(rd, uSun), 0.0);
+  vec3 fogCol = mix(uSkyHor*0.95, vec3(1.0, 0.84, 0.62), pow(sd, 7.0)*0.8);
+  float fo = 1.0 - exp(-pow(t*uFog, 1.15));
+  col = mix(col, fogCol, fo);
+  if (uMist > 0.0) {
+    float b = 1.0/uMistH, h0 = ro.y - uWater;
+    float m = abs(rd.y) < 1e-4 ? uMist*exp(-h0*b)*t : uMist*exp(-h0*b)*(1.0 - exp(-t*rd.y*b))/rd.y;
+    col = mix(col, mix(vec3(0.75, 0.8, 0.86), vec3(1.0, 0.9, 0.75), pow(sd, 4.0))*1.05, clamp(m, 0.0, 0.9));
+  }
+  return col;
+}
+void main(){
+  vec2 ndc = vUv*2.0 - 1.0;
+  vec4 v = uInvProj*vec4(ndc, 1.0, 1.0);
+  vec3 rd = normalize(mat3(uCamRot)*normalize(v.xyz/v.w));
+  // yalnızca camdan görünen ışınları hesapla
+  float tg = (uRoomR - uCamPos.z)/max(rd.z, 1e-4);
+  vec3 gp = uCamPos + rd*tg;
+  if (rd.z <= 0.0 || abs(gp.x) > uRoomR + 0.3 || gp.y < -0.3 || gp.y > 4.8) { gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); return; }
+  vec3 ro = vec3(uCamPos.x*3.0, uTerr.w + 95.0 + uCamPos.y, uCamPos.z*3.0);
+  const float TMAX = 32000.0;
+  float t = march(ro, rd, TMAX, 220, 8);
+  vec3 col;
+  float tw = (uWater > -9000.0 && rd.y < 0.0) ? (uWater - ro.y)/rd.y : 1e9;
+  if (tw < t) {
+    vec3 wp = ro + rd*tw;
+    vec2 q = wp.xz*0.012;
+    vec3 w1 = noised(q + vec2(uTime*0.18, uTime*0.07)), w2 = noised(q*2.9 - vec2(uTime*0.12, -uTime*0.15));
+    float amp = 0.035/(1.0 + tw*0.001);
+    vec3 wn = normalize(vec3(-(w1.y + 0.5*w2.y)*amp, 1.0, -(w1.z + 0.5*w2.z)*amp));
+    vec3 rr = reflect(rd, wn); rr.y = abs(rr.y);
+    float tr = march(wp + vec3(0.0, 1.0, 0.0), rr, TMAX, 150, 7);
+    vec3 rc = tr < TMAX ? applyFog(shade(wp + rr*tr, rr, tr, true), wp, rr, tr) : sky(wp, rr);
+    float fre = 0.02 + 0.98*pow(1.0 - max(dot(-rd, wn), 0.0), 5.0);
+    col = mix(vec3(0.004, 0.016, 0.02), rc*0.95, clamp(fre*1.15, 0.0, 1.0));
+    col += vec3(1.0, 0.9, 0.75)*pow(max(dot(rr, uSun), 0.0), 500.0)*8.0*fre;
+    col = applyFog(col, ro, rd, tw);
+  } else if (t < TMAX) {
+    col = applyFog(shade(ro + rd*t, rd, t, false), ro, rd, t);
+  } else {
+    col = sky(ro, rd);
+    if (uMist > 0.0) col = applyFog(col, ro, rd, 30000.0);
+  }
+  col *= uExposure;
+  col = (col*(2.51*col + 0.03))/(col*(2.43*col + 0.59) + 0.14);
+  col = pow(clamp(col, 0.0, 1.0), vec3(1.0/2.2));
+  gl_FragColor = vec4(col, 1.0);
+}`;
+const backdrop = {
+  rt: new THREE.WebGLRenderTarget(4, 4, { depthBuffer: false, stencilBuffer: false }),
+  scale: matchMedia('(pointer: coarse)').matches ? 0.42 : 0.6, maxScale: 0.75, minScale: 0.25,
+  mat: null, scene: new THREE.Scene(), cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), active: false,
+  frames: 0, acc: 0, size: new THREE.Vector2(),
+};
+backdrop.mat = new THREE.ShaderMaterial({
+  uniforms: {
+    uInvProj: { value: new THREE.Matrix4() }, uCamRot: { value: new THREE.Matrix4() }, uCamPos: { value: V3(0, 1.6, 0) }, uSun: { value: V3(0, 1, 0) },
+    uTime: { value: 0 }, uExposure: { value: 1 }, uSunPower: { value: 1 }, uFog: { value: 0.00005 }, uMist: { value: 0 }, uMistH: { value: 200 },
+    uWater: { value: -10000 }, uCloudCover: { value: 0 }, uSnowLine: { value: 2000 }, uTreeLine: { value: 1600 }, uRoomR: { value: R },
+    uTerr: { value: new THREE.Vector4() }, uSkyTop: { value: V3(0.3, 0.5, 0.9) }, uSkyHor: { value: V3(0.7, 0.75, 0.85) },
+  },
+  vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
+  fragmentShader: BACKDROP_FS, depthTest: false, depthWrite: false,
+});
+backdrop.scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), backdrop.mat));
+const backdropDomeMat = new THREE.ShaderMaterial({
+  uniforms: { tBackdrop: { value: backdrop.rt.texture }, uViewport: { value: new THREE.Vector2(1, 1) } },
+  side: THREE.BackSide, depthWrite: false, fog: false, toneMapped: false,
+  vertexShader: `void main(){ gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+  fragmentShader: `uniform sampler2D tBackdrop; uniform vec2 uViewport; void main(){ gl_FragColor = texture2D(tBackdrop, gl_FragCoord.xy/uViewport); }`,
+});
+const glassBox = new THREE.Box3(V3(-R, 0, R - 0.1), V3(R, H, R + 0.1));
+const frustum = new THREE.Frustum(), projView = new THREE.Matrix4();
+function renderBackdrop(t, dt) {
+  if (!backdrop.active) return;
+  camera.updateMatrixWorld();
+  projView.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); frustum.setFromProjectionMatrix(projView);
+  if (!frustum.intersectsBox(glassBox)) return;
+  // uyarlanabilir çözünürlük: yavaşsa düşür, hızlıysa yükselt
+  backdrop.frames++; backdrop.acc += dt;
+  if (backdrop.acc > 1.2) {
+    const fps = backdrop.frames / backdrop.acc;
+    if (fps < 38) backdrop.scale = Math.max(backdrop.minScale, backdrop.scale * 0.82);
+    else if (fps > 56) backdrop.scale = Math.min(backdrop.maxScale, backdrop.scale * 1.08);
+    backdrop.frames = 0; backdrop.acc = 0;
+  }
+  renderer.getDrawingBufferSize(backdrop.size);
+  const k = backdrop.scale / Math.max(1, renderer.getPixelRatio() / 1.25);
+  const w = Math.max(64, Math.round(backdrop.size.x * k)), h = Math.max(64, Math.round(backdrop.size.y * k));
+  if (backdrop.rt.width !== w || backdrop.rt.height !== h) backdrop.rt.setSize(w, h);
+  backdropDomeMat.uniforms.uViewport.value.copy(backdrop.size);
+  const u = backdrop.mat.uniforms;
+  u.uInvProj.value.copy(camera.projectionMatrixInverse); u.uCamRot.value.copy(camera.matrixWorld); u.uCamPos.value.copy(camera.position); u.uTime.value = t;
+  const prev = renderer.getRenderTarget();
+  renderer.setRenderTarget(backdrop.rt); renderer.render(backdrop.scene, backdrop.cam); renderer.setRenderTarget(prev);
+}
+
+/* ---- düz gökyüzü kubbesi (sualtı ve yörünge) ---- */
 const skyMat = new THREE.ShaderMaterial({
   uniforms: {
     uTop: { value: col3('#000') }, uHor: { value: col3('#000') }, uBot: { value: col3('#000') },
     uSunDir: { value: V3(0, 0.2, 1) }, uSunCol: { value: col3('#fff') }, uSunSize: { value: 900 }, uGlow: { value: 0.3 },
-    uStars: { value: 0 }, uStarsAll: { value: 0 }, uNebula: { value: 0 }, uTime: { value: 0 },
+    uStars: { value: 0 }, uGalaxy: { value: 0 }, uUnder: { value: 0 }, uTime: { value: 0 },
   },
   side: THREE.BackSide, depthWrite: false, fog: false,
   vertexShader: `varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
   fragmentShader: `${GLSL_NOISE}
-    varying vec3 vDir; uniform vec3 uTop,uHor,uBot,uSunDir,uSunCol; uniform float uSunSize,uGlow,uStars,uStarsAll,uNebula,uTime;
+    varying vec3 vDir; uniform vec3 uTop,uHor,uBot,uSunDir,uSunCol; uniform float uSunSize,uGlow,uStars,uGalaxy,uUnder,uTime;
     void main(){
       vec3 d = normalize(vDir); float h = d.y;
-      vec3 col = h > 0. ? mix(uHor, uTop, pow(h, .45)) : mix(uHor, uBot, pow(min(-h*4., 1.), .6));
+      vec3 col = h > 0. ? mix(uHor, uTop, pow(h, .5)) : mix(uHor, uBot, pow(min(-h*2.5, 1.), .55));
       float s = max(dot(d, normalize(uSunDir)), 0.);
-      col += uSunCol * (pow(s, uSunSize) * 4. + pow(s, 8.) * uGlow + pow(s, 64.) * uGlow * .8);
-      if (uStars > 0.) {
-        vec3 p = d * 380.; vec3 ip = floor(p); float r = hash13(ip); vec3 fp = fract(p) - .5;
-        float st = step(.9965, r) * smoothstep(.45, .0, length(fp)) * (.55 + .45 * sin(uTime * 1.7 + r * 90.));
-        col += vec3(.9, .95, 1.) * st * uStars * mix(smoothstep(-.02, .2, h), 1., uStarsAll);
+      col += uSunCol * (pow(s, uSunSize) * 6. + pow(s, 10.) * uGlow);
+      if (uUnder > 0.) {
+        // yüzeyden süzülen ışık: Snell penceresi, dalgalı parıltı ve ışık huzmeleri
+        vec2 sp = d.xz / max(h, .08);
+        float rip = fbm2(sp * 2.2 + vec2(uTime * .25, uTime * .18));
+        float win = smoothstep(.55, .78, h);
+        col += win * vec3(.55, .85, .95) * (.35 + 1.2 * pow(rip, 2.));
+        float ang = atan(d.x, d.z);
+        float rays = pow(fbm2(vec2(ang * 9., uTime * .08)), 3.) * 1.6 + pow(noise2(vec2(ang * 31., uTime * .2)), 6.) * .9;
+        col += vec3(.22, .45, .5) * rays * smoothstep(-.35, .55, h) * (1. - win * .6);
       }
-      if (uNebula > 0.) {
-        float n = fbm3(d * 2.4), m = fbm3(d * 4.1 + 5.);
-        col += uNebula * (vec3(.32, .08, .45) * smoothstep(.5, .85, n) + vec3(.04, .22, .32) * smoothstep(.55, .9, m));
+      if (uStars > 0.) {
+        for (int k = 0; k < 2; k++) {
+          float sc = k == 0 ? 360. : 720.;
+          vec3 p = d * sc; vec3 ip = floor(p); float r = hash13(ip + float(k) * 17.); vec3 fp = fract(p) - .5;
+          float st = step(k == 0 ? .9955 : .992, r) * smoothstep(.42, .0, length(fp)) * (.6 + .4 * sin(uTime * 1.3 + r * 90.));
+          vec3 sc3 = mix(vec3(1., .8, .65), vec3(.7, .8, 1.), hash13(ip + 3.));
+          col += sc3 * st * uStars * (k == 0 ? 1.2 : .45);
+        }
+      }
+      if (uGalaxy > 0.) {
+        // Samanyolu: büyük bir çember boyunca yıldız tozu ve koyu toz şeritleri
+        vec3 gn = normalize(vec3(.35, .55, -.76));
+        float band = exp(-pow(dot(d, gn) / .2, 2.));
+        float cl = fbm3(d * 6.), dust = smoothstep(.45, .7, fbm3(d * 11. + 4.));
+        vec3 g = mix(vec3(.55, .5, .45), vec3(.75, .72, .8), cl) * band * (.35 + cl) * (1. - dust * .75 * band);
+        float core = exp(-pow(length(d - normalize(vec3(-.6, -.1, .7))) / .45, 2.));
+        col += uGalaxy * (g * .35 + vec3(1., .85, .65) * core * band * .25);
       }
       gl_FragColor = vec4(col, 1.);
       ${GLSL_OUT}
@@ -1247,118 +1589,24 @@ const skyMat = new THREE.ShaderMaterial({
 const sky = new THREE.Mesh(new THREE.SphereGeometry(1500, 48, 24), skyMat);
 sky.renderOrder = -10; sky.frustumCulled = false;
 
-/* ---- yardımcılar ---- */
-function vnoise1(seed) {
-  const tbl = Array.from({ length: 512 }, (_, i) => { const x = Math.sin((i + seed * 131.7) * 12.9898) * 43758.5453; return x - Math.floor(x); });
-  return x => { const i = Math.floor(x), f = x - i, u = f * f * (3 - 2 * f); const a = tbl[((i % 512) + 512) % 512], b = tbl[(((i + 1) % 512) + 512) % 512]; return a + (b - a) * u; };
-}
-function ridged(n, x, oct = 5) { let v = 0, a = 0.5, f = 1; for (let i = 0; i < oct; i++) { const r = 1 - Math.abs(n(x * f) * 2 - 1); v += a * r * r; f *= 2.1; a *= 0.5; } return v; }
-const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-
-/* Ufukta yay biçimli sıradağ katmanı (renkler vertex'te; uzak katmanlar soluk) */
-function makeRidge({ r, a0 = -2.1, a1 = 2.1, seg = 280, base, h, seed, freq = 3, top, bot, snow, snowAt = 0.6, mask = () => 1, sunA = 0.3, fog = false }) {
-  const n = vnoise1(seed), ns = vnoise1(seed + 7);
-  const rows = 14, heights = [];
-  for (let i = 0; i <= seg; i++) { const a = a0 + (a1 - a0) * i / seg; heights.push(base + h * mask(a) * Math.min(1.25, 0.12 + ridged(n, a * freq + seed) * 1.4)); }
-  const cTop = col3(top), cBot = col3(bot), cSnow = snow ? col3(snow) : null, c = new THREE.Color();
-  const pos = [], cols = [], idx = [];
-  const yBot = base - 420, da = (a1 - a0) / seg;
-  for (let i = 0; i <= seg; i++) {
-    const a = a0 + da * i, yt = heights[i];
-    const slope = (heights[Math.min(seg, i + 1)] - heights[Math.max(0, i - 1)]) / (2 * da * r);
-    const lit = -slope * Math.sign(sunA - a || 1);
-    const shadeK = 1 + THREE.MathUtils.clamp(lit * 0.7, -0.22, 0.22);
-    for (let j = 0; j <= rows; j++) {
-      const t = j / rows, y = yt - (yt - yBot) * Math.pow(1 - t, 2.6);
-      const rel = (y - base) / h;
-      c.copy(cBot).lerp(cTop, smooth(-0.3, 1, rel));
-      if (cSnow) {
-        const k = smooth(snowAt - 0.03, snowAt + 0.05, rel + (ns(a * 9) - 0.5) * 0.22 + (ns(a * 37 + 3) - 0.5) * 0.08);
-        c.lerp(cSnow, k);
-      }
-      c.multiplyScalar(shadeK);
-      pos.push(Math.sin(a) * r, y, Math.cos(a) * r); cols.push(c.r, c.g, c.b);
-    }
-  }
-  for (let i = 0; i < seg; i++) for (let j = 0; j < rows; j++) {
-    const p = i * (rows + 1) + j, q = p + rows + 1;
-    idx.push(p, q, p + 1, p + 1, q, q + 1);
-  }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
-  geo.setIndex(idx);
-  return new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, fog }));
-}
-
-/* Bulut / sis tabakası */
-function cloudLayer({ y, radius = 1600, colA, colB, sunCol, sunDir, horizon, scale = 0.004, cover = 0.45, opacity = 1, speed = 0.6, fadeStart = 400, fadeEnd = 1400 }) {
-  const mat = new THREE.ShaderMaterial({
-    uniforms: {
-      uTime: { value: 0 }, uColA: { value: col3(colA) }, uColB: { value: col3(colB) }, uSunCol: { value: col3(sunCol) },
-      uSunDir: { value: V3(...sunDir).normalize() }, uHor: { value: col3(horizon) }, uScale: { value: scale }, uCover: { value: cover },
-      uOpacity: { value: opacity }, uSpeed: { value: speed }, uFade: { value: new THREE.Vector2(fadeStart, fadeEnd) },
-    },
-    transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide,
-    vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix*vec4(position,1.); vW = w.xyz; gl_Position = projectionMatrix*viewMatrix*w; }`,
-    fragmentShader: `${GLSL_NOISE}
-      varying vec3 vW; uniform float uTime,uScale,uCover,uOpacity,uSpeed; uniform vec3 uColA,uColB,uSunCol,uSunDir,uHor; uniform vec2 uFade;
-      void main(){
-        vec2 p = vW.xz * uScale + vec2(uTime * uSpeed * .01, uTime * uSpeed * .004);
-        float n = fbm2(p), n2 = fbm2(p * 2.3 + 3.);
-        float cov = smoothstep(uCover, uCover + .25, n * .75 + n2 * .35);
-        vec3 v = normalize(vW - cameraPosition);
-        float sun = pow(max(dot(normalize(vec3(v.x, 0., v.z)), normalize(vec3(uSunDir.x, 0., uSunDir.z))), 0.), 5.);
-        vec3 col = mix(uColA, uColB, smoothstep(.3, .8, n2)) + uSunCol * sun * .6 * (.4 + n);
-        float dist = length(vW.xz - cameraPosition.xz);
-        float fade = smoothstep(uFade.x, uFade.y, dist);
-        col = mix(col, uHor, fade * .9);
-        gl_FragColor = vec4(col, cov * uOpacity * (1. - fade * .25));
-        ${GLSL_OUT}
-      }`,
-  });
-  const m = new THREE.Mesh(new THREE.CircleGeometry(radius, 64), mat);
-  m.rotation.x = -Math.PI / 2; m.position.y = y;
-  m.userData.tick = t => { mat.uniforms.uTime.value = t; };
-  return m;
-}
-
-function spriteTex(size, draw) { return canvasTex(size, size, draw); }
-const softDotTex = spriteTex(64, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.4, 'rgba(255,255,255,.5)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
-function cloudPuffTex(seedOff = 0) {
-  return spriteTex(512, (g, w) => {
-    const blobs = [];
-    for (let i = 0; i < 26; i++) {
-      const a = rand() * Math.PI, rad = rr(0.05, 0.32) * w;
-      blobs.push([w / 2 + Math.cos(a) * rr(0, 0.28) * w * (rand() < .5 ? -1 : 1), w * 0.62 - Math.sin(a) * rr(0, 0.22) * w, rad]);
-    }
-    for (const [x, y, r] of blobs) {
-      const gr = g.createRadialGradient(x, y - r * 0.35, r * 0.1, x, y, r);
-      gr.addColorStop(0, 'rgba(255,255,255,.95)'); gr.addColorStop(0.6, 'rgba(235,235,245,.7)'); gr.addColorStop(1, 'rgba(200,200,220,0)');
-      g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
-    }
-    const fade = g.createLinearGradient(0, w * 0.45, 0, w);
-    fade.addColorStop(0, 'rgba(0,0,0,0)'); fade.addColorStop(1, 'rgba(60,50,90,.35)');
-    g.globalCompositeOperation = 'source-atop'; g.fillStyle = fade; g.fillRect(0, 0, w, w);
-  });
-}
-
 function waterNormalsTex() {
-  const N = 256, c = document.createElement('canvas'); c.width = c.height = N;
+  const N = 512, c = document.createElement('canvas'); c.width = c.height = N;
   const g = c.getContext('2d'), img = g.createImageData(N, N);
   const waves = [];
-  for (let i = 0; i < 16; i++) waves.push([Math.round(rr(1, 10)) * (rand() < .5 ? -1 : 1), Math.round(rr(1, 10)) * (rand() < .5 ? -1 : 1), rr(0, 6.28), rr(0.4, 1) / Math.sqrt(i + 1)]);
-  const Hh = (x, y) => { let s = 0; for (const [kx, ky, ph, a] of waves) s += a * Math.sin(2 * Math.PI * (kx * x + ky * y) / N + ph); return s; };
+  for (let i = 0; i < 28; i++) { const f = 1 + Math.floor(rand() * rand() * 22); const a = rand() * Math.PI * 2; waves.push([Math.round(Math.cos(a) * f), Math.round(Math.sin(a) * f), rr(0, 6.28), 1 / Math.pow(f, 0.9)]); }
+  const hx = new Float32Array(N * N);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { let s = 0; for (const [kx, ky, ph, a] of waves) s += a * Math.sin(2 * Math.PI * (kx * x + ky * y) / N + ph); hx[y * N + x] = s; }
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const Hh = (xx, yy) => hx[((yy + N) % N) * N + ((xx + N) % N)];
     const dx = Hh(x + 1, y) - Hh(x - 1, y), dy = Hh(x, y + 1) - Hh(x, y - 1);
-    let nx = -dx * 1.4, ny = -dy * 1.4, nz = 1; const l = Math.hypot(nx, ny, nz); nx /= l; ny /= l; nz /= l;
+    let nx = -dx * 2.2, ny = -dy * 2.2, nz = 1; const l = Math.hypot(nx, ny, nz); nx /= l; ny /= l; nz /= l;
     const o = (y * N + x) * 4; img.data[o] = (nx * .5 + .5) * 255; img.data[o + 1] = (ny * .5 + .5) * 255; img.data[o + 2] = (nz * .5 + .5) * 255; img.data[o + 3] = 255;
   }
   g.putImageData(img, 0, 0);
   const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
 }
 
-/* Su yansıması alırken odanın kendisini gizle (yansımada kitaplıkların arkası görünmesin) */
+/* Su yansıması alınırken odayı gizle (yansımada kitaplıkların arkası görünmesin) */
 let roomMeshes = [];
 function collectRoomMeshes(exclude) {
   roomMeshes = [];
@@ -1373,7 +1621,7 @@ function withRoomHidden(fn) {
   try { fn(); } finally { for (const m of hidden) m.visible = true; }
 }
 
-/* ---- terasa (dağ ve fiyort için) ---- */
+/* ---- teras ---- */
 const stoneTex = canvasTex(512, 512, (c, w, h) => {
   c.fillStyle = '#3a3633'; c.fillRect(0, 0, w, h);
   for (let i = 0; i < 70; i++) { c.fillStyle = shade('#56504a', rr(0.6, 1.2)); c.beginPath(); c.ellipse(rand() * w, rand() * h, rr(20, 90), rr(12, 50), rand() * 3, 0, 7); c.fill(); }
@@ -1384,22 +1632,19 @@ function buildDeck() {
   const deckTex = canvasTex(1024, 256, (c, w, h) => {
     for (let i = 0; i < 8; i++) { c.save(); c.translate(0, i * h / 8); woodGrain(c, w, h / 8, shade('#6b4a30', rr(0.8, 1.1)), false, 14); c.restore(); c.fillStyle = 'rgba(0,0,0,.55)'; c.fillRect(0, i * h / 8, w, 3); }
   });
-  const deckMat = new THREE.MeshStandardMaterial({ map: deckTex, roughness: 0.8 });
-  const deck = new THREE.Mesh(new THREE.BoxGeometry(10.4, 0.1, 2.8), deckMat); deck.position.set(0, -0.06, 6.4); g.add(deck);
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(10.4, 0.1, 2.8), new THREE.MeshStandardMaterial({ map: deckTex, roughness: 0.8 })); deck.position.set(0, -0.06, 6.4); g.add(deck);
   const metal = new THREE.MeshStandardMaterial({ color: 0x1b1d20, metalness: 0.7, roughness: 0.4 });
   for (let x = -5; x <= 5.01; x += 1.25) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.05, 0.05), metal); p.position.set(x, 0.52, 7.7); g.add(p); }
   for (const y of [1.05, 0.12]) { const r = new THREE.Mesh(new THREE.BoxGeometry(10.2, 0.05, 0.07), metal); r.position.set(0, y, 7.7); g.add(r); }
-  const railGlass = new THREE.Mesh(new THREE.PlaneGeometry(10.1, 0.85), new THREE.MeshStandardMaterial({ color: 0xbfd8e8, transparent: true, opacity: 0.12, roughness: 0.05, metalness: 0.5, side: THREE.DoubleSide, depthWrite: false }));
+  const railGlass = new THREE.Mesh(new THREE.PlaneGeometry(10.1, 0.85), new THREE.MeshStandardMaterial({ color: 0xbfd8e8, transparent: true, opacity: 0.1, roughness: 0.05, metalness: 0.5, side: THREE.DoubleSide, depthWrite: false }));
   railGlass.position.set(0, 0.58, 7.7); g.add(railGlass);
   const rockMat = new THREE.MeshStandardMaterial({ map: stoneTex, roughness: 0.95, flatShading: true });
   const rock = new THREE.Mesh(new THREE.BoxGeometry(12, 30, 4.4), rockMat); rock.position.set(0, -15.1, 6.6); g.add(rock);
   for (let i = 0; i < 14; i++) {
-    const s = rr(1.6, 4.2);
-    const b = new THREE.Mesh(new THREE.DodecahedronGeometry(1, 0), rockMat);
+    const s = rr(1.6, 4.2), b = new THREE.Mesh(new THREE.DodecahedronGeometry(1, 0), rockMat);
     b.scale.set(s * rr(0.8, 1.5), s * rr(0.6, 1.0), s); b.position.set(rr(-7, 7), rr(-16, -3.5) - s, rr(7.5, 10)); b.rotation.set(rand() * 3, rand() * 3, rand() * 3);
     g.add(b);
   }
-  // terasta iki saksı lavanta
   for (const x of [-4.4, 4.4]) {
     const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.22, 0.45, 16), new THREE.MeshStandardMaterial({ color: 0x8c4a2c, roughness: 0.9 }));
     pot.position.set(x, 0.22, 7.2); g.add(pot);
@@ -1414,337 +1659,293 @@ function buildDeck() {
   return g;
 }
 
-/* ---------------- 1) ALPLER (gün batımı) ---------------- */
-function buildMountain(g, cfg) {
-  const sunA = Math.atan2(cfg.sky.sunDir[0], cfg.sky.sunDir[2]);
-  g.add(makeRidge({ r: 640, base: -30, h: 150, seed: 11, freq: 1.3, top: '#b3b2cc', bot: '#d9bfb4', snow: '#f8e6dc', snowAt: 0.7, sunA }));
-  g.add(makeRidge({ r: 420, base: -50, h: 125, seed: 23, freq: 1.7, top: '#8a8fae', bot: '#b8a2a6', snow: '#f4dfd6', snowAt: 0.76, sunA }));
-  g.add(makeRidge({ r: 260, base: -60, h: 95, seed: 37, freq: 2.2, top: '#5c6584', bot: '#6c6c84', snow: '#efe3de', snowAt: 0.8, sunA }));
-  g.add(makeRidge({ r: 150, base: -62, h: 58, seed: 53, freq: 2.9, top: '#37415a', bot: '#2c3444', snow: '#e2e5ee', snowAt: 0.86, sunA, mask: a => 0.5 + 0.5 * smooth(0.2, 1.1, Math.abs(a)) }));
-  // vadi sisi
-  const mist = cloudLayer({ y: -40, colA: '#c9b2c4', colB: '#ffe3cf', sunCol: '#ffb070', sunDir: cfg.sky.sunDir, horizon: cfg.sky.hor, scale: 0.006, cover: 0.32, opacity: 0.85, speed: 0.8, fadeStart: 200, fadeEnd: 900 });
-  g.add(mist);
-  // ön yamaç: arazi + çam ağaçları
-  const n = vnoise1(91);
-  const T = (x, z) => -6 - (z - 7) * 0.3 + 0.0032 * x * x + (n(x * 0.05 + z * 0.03) - 0.5) * 6 + (n(x * 0.2 + 40) - 0.5) * 1.5;
-  const tg = new THREE.PlaneGeometry(300, 110, 120, 50); tg.rotateX(-Math.PI / 2);
-  const tp = tg.attributes.position, tcol = [];
-  const cA = col3('#2e3b2a'), cB = col3('#4c4a36'), cc = new THREE.Color();
-  for (let i = 0; i < tp.count; i++) {
-    const x = tp.getX(i), z = tp.getZ(i) + 62;
-    tp.setXYZ(i, x, T(x, z), z);
-    cc.copy(cA).lerp(cB, n(x * 0.13 + z * 0.07)); tcol.push(cc.r, cc.g, cc.b);
-  }
-  tg.setAttribute('color', new THREE.Float32BufferAttribute(tcol, 3)); tg.computeVertexNormals();
-  g.add(new THREE.Mesh(tg, new THREE.MeshLambertMaterial({ vertexColors: true })));
-  const treeGeo = new THREE.ConeGeometry(1, 1, 7); treeGeo.translate(0, 0.5, 0);
-  const N = 520, trees = new THREE.InstancedMesh(treeGeo, new THREE.MeshLambertMaterial({ color: 0xffffff }), N);
-  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), tc = new THREE.Color();
-  for (let i = 0; i < N; i++) {
-    const z = rr(18, 110), x = rr(-1, 1) * (20 + z * 1.2), hgt = rr(4, 9) * (0.8 + z / 200);
-    p.set(x, T(x, z) - 0.5, z); s.set(hgt * 0.27, hgt, hgt * 0.27); m4.compose(p, q, s); trees.setMatrixAt(i, m4);
-    tc.set(pick(['#1e3b2b', '#24452f', '#2c4a32', '#1a3226'])).multiplyScalar(rr(0.8, 1.15)); trees.setColorAt(i, tc);
-  }
-  g.add(trees);
-  // süzülen kartallar
-  const birdTex = spriteTex(128, (c, w) => { c.strokeStyle = '#1b1612'; c.lineWidth = 7; c.lineCap = 'round'; c.beginPath(); c.moveTo(10, 70); c.quadraticCurveTo(40, 40, 64, 64); c.quadraticCurveTo(88, 40, 118, 70); c.stroke(); });
-  const birds = [0, 1, 2].map(i => { const b = new THREE.Sprite(new THREE.SpriteMaterial({ map: birdTex, fog: false })); b.scale.set(2.2, 2.2, 1); g.add(b); return b; });
-  return t => {
-    mist.userData.tick(t);
+/* ---------------- AÇIK DENİZ: fiziksel gökyüzü + okyanus ---------------- */
+function buildOcean(g, cfg) {
+  const sun = V3(...cfg.sunDir).normalize();
+  const skyBox = new Sky(); skyBox.scale.setScalar(1700); skyBox.frustumCulled = false; skyBox.renderOrder = -9;
+  const su = skyBox.material.uniforms;
+  su.turbidity.value = 8; su.rayleigh.value = 2.6; su.mieCoefficient.value = 0.006; su.mieDirectionalG.value = 0.8;
+  su.sunPosition.value.copy(sun).multiplyScalar(450000);
+  skyBox.material.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('gl_FragColor = vec4( retColor, 1.0 );', 'gl_FragColor = vec4( retColor * 0.42, 1.0 );'); };
+  g.add(skyBox);
+  const water = new Water(new THREE.PlaneGeometry(6000, 6000), {
+    textureWidth: 1024, textureHeight: 1024, waterNormals: waterNormalsTex(),
+    sunDirection: sun.clone(), sunColor: 0xfff0d8, waterColor: 0x00202a, distortionScale: 3.4, fog: false,
+  });
+  water.rotation.x = -Math.PI / 2; water.position.y = -26; water.material.uniforms.size.value = 1.6;
+  const orig = water.onBeforeRender;
+  water.onBeforeRender = function (...args) { withRoomHidden(() => orig.apply(this, args)); };
+  g.add(water);
+  // uzakta alçak, sisli bir burun
+  const capeGeo = new THREE.PlaneGeometry(1, 1, 120, 1); const cp = capeGeo.attributes.position, cn = vnoise2(3);
+  for (let i = 0; i < cp.count; i++) { const u = cp.getX(i) + 0.5, top = cp.getY(i) > 0; const a = -1.15 + u * 0.55, h = top ? 18 + 26 * Math.pow(Math.sin(u * Math.PI), 0.7) * (0.75 + 0.35 * cn(u * 9, 1)) : -40; cp.setXYZ(i, Math.sin(a) * 2400, -26 + h, Math.cos(a) * 2400); }
+  const cape = new THREE.Mesh(capeGeo, new THREE.MeshBasicMaterial({ color: 0x6c5c63, fog: false, side: THREE.DoubleSide }));
+  g.add(cape);
+  // martılar
+  const birdTex = spriteTex(128, (c, w) => { c.strokeStyle = '#1d1a18'; c.lineWidth = 6; c.lineCap = 'round'; c.beginPath(); c.moveTo(12, 66); c.quadraticCurveTo(40, 44, 64, 64); c.quadraticCurveTo(88, 44, 116, 66); c.stroke(); });
+  const birds = [0, 1, 2, 3].map(() => { const b = new THREE.Sprite(new THREE.SpriteMaterial({ map: birdTex, fog: false })); g.add(b); return b; });
+  return (t, dt) => {
+    water.material.uniforms.time.value += dt * 0.55;
     birds.forEach((b, i) => {
-      const a = t * (0.09 + i * 0.02) + i * 2.1;
-      b.position.set(Math.cos(a) * (22 + i * 8) + (i - 1) * 12, 12 + i * 5 + Math.sin(t * 0.3 + i) * 2, 85 + Math.sin(a) * 18);
-      b.scale.y = 2.2 * (0.75 + 0.25 * Math.sin(t * (i === 1 ? 5 : 1.4) + i));
+      const a = t * (0.05 + i * 0.012) + i * 1.7;
+      b.position.set(Math.cos(a) * (60 + i * 25) + 20, 18 + i * 6 + Math.sin(t * 0.4 + i) * 3, 160 + Math.sin(a) * 50 + i * 30);
+      const s = 2.4 + i * 0.3; b.scale.set(s, s * (0.7 + 0.3 * Math.sin(t * (2 + i * 0.4) + i)), 1);
     });
   };
 }
 
-/* ---------------- 2) NORVEÇ FİYORDU (kutup ışıkları) ---------------- */
-function buildFjord(g, cfg) {
-  const valley = (lo, hi, floor) => a => floor + (1 - floor) * smooth(lo, hi, Math.abs(a + 0.08));
-  g.add(makeRidge({ r: 720, base: -8, h: 150, seed: 61, freq: 2.4, top: '#2b3758', bot: '#1d2640', snow: '#7b88aa', snowAt: 0.45, mask: valley(0.05, 0.6, 0.35) }));
-  g.add(makeRidge({ r: 440, base: -8, h: 220, seed: 73, freq: 3, top: '#1f2944', bot: '#141b2e', snow: '#66739a', snowAt: 0.55, mask: valley(0.12, 0.62, 0.12) }));
-  g.add(makeRidge({ r: 230, base: -8, h: 190, seed: 89, freq: 3.6, top: '#141c30', bot: '#0d1322', snow: '#56628a', snowAt: 0.66, mask: valley(0.3, 0.75, 0.0) }));
-  g.add(makeRidge({ r: 110, base: -8, h: 130, seed: 97, freq: 4.5, top: '#0d1424', bot: '#090d18', snow: '#4b5679', snowAt: 0.78, mask: valley(0.55, 0.95, 0.0) }));
-  // kutup ışıkları
-  const auroraMat = new THREE.ShaderMaterial({
-    uniforms: { uTime: { value: 0 }, uSeed: { value: 0 }, uA: { value: col3('#3dff9a') }, uB: { value: col3('#b44cff') } },
-    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false,
-    vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
-    fragmentShader: `${GLSL_NOISE}
-      varying vec2 vUv; uniform float uTime,uSeed; uniform vec3 uA,uB;
-      void main(){
-        float n = fbm2(vec2(vUv.x * 9. + uTime * .05 + uSeed, uTime * .03));
-        float curtain = pow(noise2(vec2(vUv.x * 70. + n * 9., uTime * .25)), 2.2);
-        float vert = smoothstep(0., .12, vUv.y) * pow(1. - vUv.y, 1.5);
-        float edge = smoothstep(0., .12, vUv.x) * smoothstep(1., .88, vUv.x);
-        float k = (n * .9 + curtain) * vert * edge;
-        vec3 col = mix(uA, uB, smoothstep(.3, .95, vUv.y));
-        gl_FragColor = vec4(col * k * 1.5, k);
-        ${GLSL_OUT}
-      }`,
-  });
-  const auroras = [];
-  [[380, -0.9, 0.5, 70, 120, 0], [520, -0.2, 1.2, 95, 150, 3.3], [460, -1.3, -0.3, 60, 90, 6.1]].forEach(([r, a0, a1, y, h, sd]) => {
-    const geo = new THREE.PlaneGeometry(1, 1, 180, 1); const p = geo.attributes.position;
-    for (let i = 0; i < p.count; i++) {
-      const u = p.getX(i) + 0.5, v = p.getY(i) + 0.5, a = a0 + (a1 - a0) * u + Math.sin(u * 5 + sd) * 0.09, rr2 = r + Math.sin(u * 8 + sd) * 40;
-      p.setXYZ(i, Math.sin(a) * rr2, y + v * h, Math.cos(a) * rr2);
-    }
-    const m = auroraMat.clone(); m.uniforms.uSeed.value = sd;
-    const mesh = new THREE.Mesh(geo, m); mesh.frustumCulled = false; g.add(mesh); auroras.push(m);
-  });
-  // ada ve kırmızı kulübe
-  const isle = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 8), new THREE.MeshStandardMaterial({ color: 0x141a22, roughness: 1, flatShading: true }));
-  isle.scale.set(18, 4, 11); isle.position.set(-22, -9, 120); g.add(isle);
-  const cabin = new THREE.Group(); cabin.position.set(-24, -5.6, 118); cabin.rotation.y = 0.5; g.add(cabin);
-  const red = new THREE.MeshStandardMaterial({ color: 0x7a1d17, roughness: 0.8 });
-  const wall = new THREE.Mesh(new THREE.BoxGeometry(4, 2.4, 3), red); wall.position.y = 1.2; cabin.add(wall);
-  const roof = new THREE.Mesh(new THREE.ConeGeometry(3, 1.6, 4), new THREE.MeshStandardMaterial({ color: 0x1d1d22 })); roof.position.y = 3.2; roof.rotation.y = Math.PI / 4; roof.scale.set(1, 1, 0.8); cabin.add(roof);
-  const win = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.6), new THREE.MeshBasicMaterial({ color: 0xffc66a })); win.position.set(0.8, 1.3, 1.51); cabin.add(win);
-  const win2 = win.clone(); win2.position.x = -0.8; cabin.add(win2);
-  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: softDotTex, color: 0xffb04a, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }));
-  glow.scale.set(9, 6, 1); glow.position.set(0, 1.4, 2); cabin.add(glow);
-  // su
-  const water = new Water(new THREE.PlaneGeometry(2600, 2600), {
-    textureWidth: 512, textureHeight: 512, waterNormals: waterNormalsTex(),
-    sunDirection: V3(...cfg.sky.sunDir).normalize(), sunColor: 0x9fb3ff, waterColor: 0x02101c, distortionScale: 1.6, fog: false,
-  });
-  water.rotation.x = -Math.PI / 2; water.position.y = -8; water.material.uniforms.size.value = 3;
-  const orig = water.onBeforeRender;
-  water.onBeforeRender = function (...args) { withRoomHidden(() => orig.apply(this, args)); };
-  g.add(water);
-  return (t, dt) => {
-    auroras.forEach(m => { m.uniforms.uTime.value = t; });
-    water.material.uniforms.time.value += dt * 0.35;
-    glow.material.opacity = 0.5 + Math.sin(t * 2.3) * 0.05;
+/* ---------------- OKYANUSUN DİBİ ---------------- */
+function vnoise2(seed) {
+  const h = (x, y) => { const v = Math.sin(x * 127.1 + y * 311.7 + seed * 74.7) * 43758.5453; return v - Math.floor(v); };
+  return (x, y) => {
+    const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy, ux = fx * fx * (3 - 2 * fx), uy = fy * fy * (3 - 2 * fy);
+    const a = h(ix, iy), b = h(ix + 1, iy), c = h(ix, iy + 1), d = h(ix + 1, iy + 1);
+    return (a + (b - a) * ux + (c - a) * uy + (a - b - c + d) * ux * uy) * 2 - 1;
   };
 }
-
-/* ---------------- 3) OKYANUSUN DİBİ ---------------- */
 function buildUnderwater(g, cfg) {
   const fogCol = col3(cfg.fog.color), fogD = cfg.fog.density;
   const fogUni = () => ({ uFogCol: { value: fogCol }, uFogD: { value: fogD } });
-  const FOG = `float fogK(float d){ return 1. - exp(-uFogD*uFogD*d*d); }`;
-  // kum zemin + kostik ışık
+  // kum tepeleri + kostik ışık
+  const sg = new THREE.PlaneGeometry(700, 700, 260, 260); sg.rotateX(-Math.PI / 2);
+  const sp = sg.attributes.position, sn = vnoise2(7);
+  for (let i = 0; i < sp.count; i++) {
+    const x = sp.getX(i), z = sp.getZ(i) + 330;
+    const dune = Math.sin(x * 0.06 + sn(x * 0.01, z * 0.01) * 4) * 0.6 + sn(x * 0.02, z * 0.02) * 3.5 + sn(x * 0.004, z * 0.004) * 14 * Math.min(1, Math.max(0, (z - 20) / 120));
+    sp.setXYZ(i, x, -1.6 + dune - Math.min(1, z / 300) * 6, z);
+  }
+  sg.computeVertexNormals();
   const sandMat = new THREE.ShaderMaterial({
     uniforms: { uTime: { value: 0 }, ...fogUni() }, fog: false,
-    vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix*vec4(position,1.); vW = w.xyz; gl_Position = projectionMatrix*viewMatrix*w; }`,
-    fragmentShader: `${GLSL_NOISE} varying vec3 vW; uniform float uTime, uFogD; uniform vec3 uFogCol; ${FOG}
+    vertexShader: `varying vec3 vW; varying vec3 vN; void main(){ vec4 w = modelMatrix*vec4(position,1.); vW = w.xyz; vN = normal; gl_Position = projectionMatrix*viewMatrix*w; }`,
+    fragmentShader: `${GLSL_NOISE} varying vec3 vW; varying vec3 vN; uniform float uTime, uFogD; uniform vec3 uFogCol;
       void main(){
-        vec2 p = vW.xz; float n = fbm2(p * .08);
-        float rip = sin(p.x * 1.4 + p.y * .3 + fbm2(p * .25) * 5.) * .5 + .5;
-        vec3 sand = mix(vec3(.50,.46,.34), vec3(.78,.72,.55), n) * (.82 + rip * .18);
-        sand *= vec3(.4, .6, .68);
-        sand += vec3(.45, .8, .9) * caustic(p * .11, uTime * .5) * .45;
-        gl_FragColor = vec4(mix(sand, uFogCol, fogK(length(vW - cameraPosition))), 1.);
+        vec2 p = vW.xz; float n = fbm2(p * .06), fine = noise2(p * 3.);
+        float rip = sin(p.x * 1.6 + p.y * .4 + fbm2(p * .3) * 6.) * .5 + .5;
+        vec3 sand = mix(vec3(.36,.33,.25), vec3(.55,.5,.38), n) * (.85 + rip * .12 + fine * .06);
+        float lit = clamp(dot(normalize(vN), normalize(vec3(.2, 1., .3))), 0., 1.);
+        sand *= vec3(.2, .36, .42) * (.35 + .55 * lit);
+        float c = clamp(caustic(p * .09, uTime * .45) + .6 * caustic(p * .21 + 3., uTime * .6), 0., 1.6);
+        sand += vec3(.25, .5, .55) * c * .16 * lit;
+        float d = length(vW - cameraPosition);
+        gl_FragColor = vec4(mix(sand, uFogCol, 1. - exp(-uFogD*uFogD*d*d)), 1.);
         ${GLSL_OUT}
       }`,
   });
-  const sand = new THREE.Mesh(new THREE.CircleGeometry(1400, 64), sandMat); sand.rotation.x = -Math.PI / 2; sand.position.y = -1.5; g.add(sand);
-  // yosun ormanı
-  const kelpGeo = new THREE.PlaneGeometry(1, 1, 1, 24); kelpGeo.translate(0, 0.5, 0);
+  g.add(new THREE.Mesh(sg, sandMat));
+  // dev kelp ormanı
+  const kelpGeo = new THREE.PlaneGeometry(1, 1, 1, 30); kelpGeo.translate(0, 0.5, 0);
   const kelpMat = new THREE.ShaderMaterial({
     uniforms: { uTime: { value: 0 }, ...fogUni() }, side: THREE.DoubleSide, fog: false,
-    vertexShader: `uniform float uTime, uFogD; varying float vY; varying float vFog;
+    vertexShader: `uniform float uTime, uFogD; varying float vY; varying float vFog; varying vec2 vUv2;
       void main(){
-        vec3 p = position; vY = p.y;
-        p.x *= (1. - p.y * .55) * (.75 + .35 * sin(p.y * 26.));
+        vec3 p = position; vY = p.y; vUv2 = uv;
         vec4 w = modelMatrix * instanceMatrix * vec4(p, 1.);
         float ph = instanceMatrix[3].x * .37 + instanceMatrix[3].z * .21;
-        w.x += sin(uTime * .7 + ph + p.y * 3.) * 1.1 * p.y; w.z += cos(uTime * .5 + ph + p.y * 2.) * .5 * p.y;
+        w.x += sin(uTime * .55 + ph + p.y * 2.6) * 1.4 * p.y * p.y; w.z += cos(uTime * .4 + ph + p.y * 1.9) * .7 * p.y;
         vec4 mv = viewMatrix * w; gl_Position = projectionMatrix * mv;
         float d = length(mv.xyz); vFog = 1. - exp(-uFogD*uFogD*d*d);
       }`,
-    fragmentShader: `varying float vY; varying float vFog; uniform vec3 uFogCol;
-      void main(){ vec3 c = mix(vec3(.12,.2,.06), vec3(.45,.55,.16), vY); gl_FragColor = vec4(mix(c, uFogCol, vFog), 1.); ${GLSL_OUT} }`,
+    fragmentShader: `${GLSL_NOISE} varying float vY; varying float vFog; varying vec2 vUv2; uniform vec3 uFogCol;
+      void main(){
+        float edge = abs(vUv2.x - .5) * 2.;
+        float blade = (.42 + .38 * pow(.5 + .5 * sin(vY * 16.), 1.5) + .12 * noise2(vec2(vY * 140., 1.))) * (1. - vY * .25);
+        if (edge > blade) discard;
+        vec3 c = mix(vec3(.08,.07,.025), vec3(.3,.28,.09), vY) * (.75 + .4 * noise2(vUv2 * vec2(3., 60.)));
+        c += vec3(.25,.3,.08) * pow(1. - edge, 3.) * vY * .5;
+        c *= .8 + .4 * smoothstep(.0, .2, abs(edge - blade * .5));
+        gl_FragColor = vec4(mix(c, uFogCol, vFog), 1.);
+        ${GLSL_OUT}
+      }`,
   });
-  const KN = 150, kelp = new THREE.InstancedMesh(kelpGeo, kelpMat, KN);
+  const KN = 260, kelp = new THREE.InstancedMesh(kelpGeo, kelpMat, KN);
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3();
   for (let i = 0; i < KN; i++) {
-    const z = rr(9, 90), x = rr(-1, 1) * (12 + z * 0.9);
-    q.setFromEuler(new THREE.Euler(0, rand() * 3.14, 0)); p.set(x, -1.5, z); s.set(rr(0.4, 0.8), rr(5, 17), 1);
+    const z = rr(10, 140), x = rr(-1, 1) * (14 + z * 0.9);
+    q.setFromEuler(new THREE.Euler(0, rand() * 3.14, 0)); p.set(x, -2.5 - Math.min(1, z / 300) * 6, z); s.set(rr(0.8, 1.5), rr(9, 24), 1);
     m4.compose(p, q, s); kelp.setMatrixAt(i, m4);
   }
   kelp.frustumCulled = false; g.add(kelp);
-  // kayalar ve mercanlar
-  const rockMat = new THREE.MeshStandardMaterial({ color: 0x6d8287, roughness: 1, flatShading: true, emissive: 0x0b3445, emissiveIntensity: 0.6 });
-  const coralCols = [0xff7a6b, 0xf5b041, 0xc86bd6, 0x58d6c0, 0xff9fc2];
-  for (let i = 0; i < 12; i++) {
-    const r = new THREE.Mesh(new THREE.DodecahedronGeometry(1, 0), rockMat); const sc = rr(0.5, 1.8);
-    r.scale.set(sc * rr(1, 1.8), sc * rr(0.5, 0.9), sc); r.position.set(rr(-9, 9), -1.5 + sc * 0.3, rr(6.5, 16)); r.rotation.set(rand(), rand() * 3, rand()); g.add(r);
+  // yosunlu kayalar
+  const rockTex = canvasTex(512, 512, (c, w, h) => {
+    c.fillStyle = '#4a5552'; c.fillRect(0, 0, w, h);
+    for (let i = 0; i < 400; i++) { c.fillStyle = `rgba(${rand() < .5 ? '40,70,45' : '90,95,85'},${rr(.1, .4)})`; c.beginPath(); c.arc(rand() * w, rand() * h, rr(4, 30), 0, 7); c.fill(); }
+    grain(c, w, h, 40000, 0.3, 0.08);
+  });
+  const rockMat = new THREE.MeshStandardMaterial({ map: rockTex, roughness: 1, color: 0xb8d4d6, emissive: 0x0c2a36, emissiveIntensity: 0.8 });
+  for (let i = 0; i < 16; i++) {
+    const geo = new THREE.IcosahedronGeometry(1, 2); const pp = geo.attributes.position;
+    for (let k = 0; k < pp.count; k++) { const v = V3(pp.getX(k), pp.getY(k), pp.getZ(k)); const f = 0.75 + 0.45 * Math.abs(Math.sin(v.x * 2.7 + i) * Math.cos(v.z * 3.1 + v.y * 1.3)); pp.setXYZ(k, v.x * f, v.y * f, v.z * f); }
+    geo.computeVertexNormals();
+    const r = new THREE.Mesh(geo, rockMat); const sc = rr(0.6, 2.8);
+    r.scale.set(sc * rr(1, 1.8), sc * rr(0.5, 0.9), sc); r.position.set(rr(-14, 14), -1.8 + sc * 0.2, rr(6.8, 30)); r.rotation.set(rand() * 0.5, rand() * 3, rand() * 0.5); g.add(r);
   }
-  for (let i = 0; i < 26; i++) {
-    const cg = new THREE.Group(); const color = pick(coralCols);
-    const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.7, emissive: color, emissiveIntensity: 0.18 });
-    const base = V3(rr(-10, 10), -1.5, rr(6.2, 15));
-    for (let k = 0; k < 6; k++) {
-      const len = rr(0.3, 0.8), br = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.06, len, 6), mat);
-      br.position.set(rr(-0.15, 0.15), len / 2, rr(-0.15, 0.15)); br.rotation.set(rr(-0.6, 0.6), 0, rr(-0.6, 0.6)); cg.add(br);
-      const tip = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 6), mat); tip.position.copy(br.position).multiplyScalar(2).setY(len); cg.add(tip);
-    }
-    cg.position.copy(base); cg.scale.setScalar(rr(0.8, 1.6)); g.add(cg);
-  }
-  const star = new THREE.Shape(); for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2, rad = k % 2 ? 0.07 : 0.2; k ? star.lineTo(Math.cos(a) * rad, Math.sin(a) * rad) : star.moveTo(rad, 0); }
-  const starfish = new THREE.Mesh(new THREE.ShapeGeometry(star), new THREE.MeshStandardMaterial({ color: 0xff6a2a, roughness: 0.8, side: THREE.DoubleSide }));
-  starfish.rotation.x = -Math.PI / 2; starfish.position.set(1.4, -1.48, 6.4); g.add(starfish);
-  // balık sürüleri
+  // sardalya sürüleri
   const fs = new THREE.Shape();
-  fs.moveTo(0.5, 0); fs.quadraticCurveTo(0.25, 0.24, -0.2, 0.07); fs.lineTo(-0.5, 0.22); fs.lineTo(-0.4, 0); fs.lineTo(-0.5, -0.22); fs.lineTo(-0.2, -0.07); fs.quadraticCurveTo(0.25, -0.2, 0.5, 0);
+  fs.moveTo(0.5, 0); fs.quadraticCurveTo(0.28, 0.14, -0.22, 0.05); fs.lineTo(-0.5, 0.15); fs.lineTo(-0.42, 0); fs.lineTo(-0.5, -0.15); fs.lineTo(-0.22, -0.05); fs.quadraticCurveTo(0.28, -0.13, 0.5, 0);
   const fishMat = new THREE.ShaderMaterial({
     uniforms: { uTime: { value: 0 }, ...fogUni() }, side: THREE.DoubleSide, fog: false,
-    vertexShader: `uniform float uTime, uFogD; varying vec3 vCol; varying float vBelly; varying float vFog;
+    vertexShader: `uniform float uTime, uFogD; varying float vBelly; varying float vFog; varying float vSheen;
       void main(){
-        vec3 p = position; float ph = instanceMatrix[3].x * .7 + instanceMatrix[3].y * 1.3;
-        p.z += sin(uTime * 10. + ph) * .13 * smoothstep(.1, -.5, p.x);
-        vec4 mv = viewMatrix * modelMatrix * instanceMatrix * vec4(p, 1.); gl_Position = projectionMatrix * mv;
-        #ifdef USE_INSTANCING_COLOR
-          vCol = instanceColor;
-        #else
-          vCol = vec3(1.);
-        #endif
+        vec3 p = position; float ph = instanceMatrix[3].x * .7 + instanceMatrix[3].y * 1.3 + instanceMatrix[3].z;
+        p.z += sin(uTime * 12. + ph + p.x * 4.) * .09 * smoothstep(.2, -.5, p.x);
+        vec4 w = modelMatrix * instanceMatrix * vec4(p, 1.);
+        vec3 side = normalize(mat3(modelMatrix * instanceMatrix) * vec3(0., 0., 1.));
+        vec3 v = normalize(cameraPosition - w.xyz);
+        vSheen = pow(abs(dot(side, v)), 6.) * (.5 + .5 * sin(ph * 3. + uTime * 2.));
+        vec4 mv = viewMatrix * w; gl_Position = projectionMatrix * mv;
         vBelly = position.y; float d = length(mv.xyz); vFog = 1. - exp(-uFogD*uFogD*d*d);
       }`,
-    fragmentShader: `varying vec3 vCol; varying float vBelly; varying float vFog; uniform vec3 uFogCol;
-      void main(){ vec3 c = vCol * (.7 + vBelly * 1.6); gl_FragColor = vec4(mix(c, uFogCol, vFog), 1.); ${GLSL_OUT} }`,
+    fragmentShader: `varying float vBelly; varying float vFog; varying float vSheen; uniform vec3 uFogCol;
+      void main(){ vec3 back = vec3(.08,.16,.2), belly = vec3(.55,.62,.62);
+        vec3 c = mix(belly, back, smoothstep(-.06, .08, vBelly)) + vec3(.7,.85,.9) * vSheen * .7;
+        gl_FragColor = vec4(mix(c, uFogCol, vFog), 1.); ${GLSL_OUT} }`,
   });
   const schools = [
-    { c: V3(0, 3, 28), rx: 26, rz: 14, sp: 0.16, n: 45, col: ['#f2c14e', '#f7d774'], size: 0.45 },
-    { c: V3(-8, 6, 45), rx: 40, rz: 20, sp: -0.1, n: 40, col: ['#7fd3e6', '#c3eef7'], size: 0.55 },
-    { c: V3(10, 1.5, 18), rx: 14, rz: 7, sp: 0.24, n: 26, col: ['#ff7f50', '#ffffff'], size: 0.32 },
+    { c: V3(0, 3.5, 30), rx: 28, rz: 14, sp: 0.11, n: 140, size: 0.28 },
+    { c: V3(-12, 7, 55), rx: 40, rz: 20, sp: -0.07, n: 120, size: 0.32 },
   ];
   const FN = schools.reduce((a, s2) => a + s2.n, 0);
   const fish = new THREE.InstancedMesh(new THREE.ShapeGeometry(fs, 6), fishMat, FN); fish.frustumCulled = false;
-  const fishData = []; const fc = new THREE.Color();
-  schools.forEach((sc, si) => { for (let i = 0; i < sc.n; i++) { fishData.push({ si, off: V3(rr(-3, 3), rr(-1.5, 1.5), rr(-3, 3)), lag: rr(0, 0.25), size: sc.size * rr(0.8, 1.2), ph: rand() * 6 }); fc.set(pick(sc.col)).multiplyScalar(rr(0.85, 1.1)); fish.setColorAt(fishData.length - 1, fc); } });
+  const fishData = [];
+  schools.forEach((sc, si) => { for (let i = 0; i < sc.n; i++) { const a = rand() * 6.28, rad = Math.pow(rand(), 0.5) * 3.2; fishData.push({ si, off: V3(Math.cos(a) * rad, rr(-1.4, 1.4), Math.sin(a) * rad * 0.7), lag: rr(0, 0.08), size: sc.size * rr(0.8, 1.2), ph: rand() * 6 }); } });
   g.add(fish);
   // uzakta geçen balina
   const wh = new THREE.Shape();
   wh.moveTo(0.5, 0.02); wh.bezierCurveTo(0.48, 0.12, 0.3, 0.14, 0.05, 0.11); wh.bezierCurveTo(-0.2, 0.08, -0.35, 0.04, -0.42, 0.02);
   wh.lineTo(-0.52, 0.1); wh.lineTo(-0.5, 0.0); wh.lineTo(-0.52, -0.09); wh.lineTo(-0.42, -0.01);
   wh.bezierCurveTo(-0.3, -0.06, -0.05, -0.1, 0.12, -0.09); wh.lineTo(0.05, -0.2); wh.lineTo(0.18, -0.085); wh.bezierCurveTo(0.35, -0.08, 0.5, -0.06, 0.5, 0.02);
-  const whale = new THREE.Mesh(new THREE.ShapeGeometry(wh, 10), new THREE.MeshBasicMaterial({ color: 0x0a2a40, side: THREE.DoubleSide, fog: true }));
-  whale.scale.set(30, 30, 30); g.add(whale);
-  // ışık huzmeleri
+  const whale = new THREE.Mesh(new THREE.ShapeGeometry(wh, 12), new THREE.MeshBasicMaterial({ color: 0x0b2a3c, side: THREE.DoubleSide, fog: true }));
+  whale.scale.set(26, 26, 26); g.add(whale);
+  // yumuşak ışık huzmeleri
   const rayMat = new THREE.ShaderMaterial({
     uniforms: { uTime: { value: 0 }, uSeed: { value: 0 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false,
     vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
     fragmentShader: `varying vec2 vUv; uniform float uTime, uSeed;
-      void main(){ float x = 1. - abs(vUv.x - .5) * 2.; float k = x * x * pow(vUv.y, 1.3) * (.55 + .45 * sin(uTime * .35 + uSeed)) * .16;
-        gl_FragColor = vec4(vec3(.7, .95, 1.) * k, k); ${GLSL_OUT} }`,
+      void main(){ float x = 1. - abs(vUv.x - .5) * 2.; float k = pow(x, 2.5) * pow(vUv.y, 1.6) * (.5 + .5 * sin(uTime * .3 + uSeed)) * .07;
+        gl_FragColor = vec4(vec3(.65, .92, 1.) * k, k); ${GLSL_OUT} }`,
   });
   const rays = [];
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < 14; i++) {
     const m = rayMat.clone(); m.uniforms.uSeed.value = i * 1.7;
-    const r = new THREE.Mesh(new THREE.PlaneGeometry(rr(4, 9), 80), m);
-    r.position.set(rr(-30, 30), 36, rr(14, 70)); r.rotation.z = rr(-0.3, 0.1); g.add(r); rays.push(r);
+    const r = new THREE.Mesh(new THREE.PlaneGeometry(rr(3, 8), 90), m);
+    r.position.set(rr(-35, 35), 40, rr(12, 80)); r.rotation.z = rr(-0.22, 0.05); g.add(r); rays.push(r);
   }
-  // kabarcıklar
-  const BN = 180, bpos = new Float32Array(BN * 3), bsp = [];
-  for (let i = 0; i < BN; i++) { bpos[i * 3] = rr(-8, 8); bpos[i * 3 + 1] = rr(-1.5, 14); bpos[i * 3 + 2] = rr(5.4, 12); bsp.push(rr(0.5, 1.4)); }
+  // deniz karı ve kabarcıklar
+  const PN = 900, ppos = new Float32Array(PN * 3);
+  for (let i = 0; i < PN; i++) { ppos[i * 3] = rr(-20, 20); ppos[i * 3 + 1] = rr(-1.5, 14); ppos[i * 3 + 2] = rr(5.3, 40); }
+  const pgeo = new THREE.BufferGeometry(); pgeo.setAttribute('position', new THREE.BufferAttribute(ppos, 3));
+  const snow = new THREE.Points(pgeo, new THREE.PointsMaterial({ map: softDotTex, size: 0.05, color: 0xcfeef2, transparent: true, opacity: 0.55, depthWrite: false, fog: true }));
+  g.add(snow);
+  const BN = 70, bpos = new Float32Array(BN * 3), bsp = [];
+  for (let i = 0; i < BN; i++) { bpos[i * 3] = rr(-6, 6); bpos[i * 3 + 1] = rr(-1.5, 14); bpos[i * 3 + 2] = rr(5.4, 9); bsp.push(rr(0.6, 1.5)); }
   const bgeo = new THREE.BufferGeometry(); bgeo.setAttribute('position', new THREE.BufferAttribute(bpos, 3));
-  const bubbles = new THREE.Points(bgeo, new THREE.PointsMaterial({ map: softDotTex, size: 0.09, color: 0xd8f6ff, transparent: true, opacity: 0.75, depthWrite: false, fog: true }));
+  const bubbles = new THREE.Points(bgeo, new THREE.PointsMaterial({ map: softDotTex, size: 0.08, color: 0xe0f8ff, transparent: true, opacity: 0.6, depthWrite: false, fog: true }));
   g.add(bubbles);
   const tmpM = new THREE.Matrix4(), fwdV = new THREE.Vector3(), upV = new THREE.Vector3(), sideV = new THREE.Vector3(), pos = new THREE.Vector3(), sc3 = new THREE.Vector3();
   return (t, dt) => {
     sandMat.uniforms.uTime.value = t; kelpMat.uniforms.uTime.value = t; fishMat.uniforms.uTime.value = t;
     rays.forEach(r => { r.material.uniforms.uTime.value = t; r.rotation.y = Math.atan2(camera.position.x - r.position.x, camera.position.z - r.position.z); });
     fishData.forEach((f, i) => {
-      const sc = schools[f.si], a = t * sc.sp - f.lag + f.ph * 0.02;
-      pos.set(sc.c.x + Math.cos(a) * sc.rx, sc.c.y + Math.sin(a * 2) * 1.5, sc.c.z + Math.sin(a) * sc.rz).add(f.off);
-      pos.y += Math.sin(t * 1.3 + f.ph) * 0.15;
-      fwdV.set(-Math.sin(a) * sc.rx, Math.cos(a * 2) * 3, Math.cos(a) * sc.rz).multiplyScalar(Math.sign(sc.sp)).normalize();
+      const sc = schools[f.si], a = t * sc.sp - f.lag;
+      const sw = Math.sin(t * 0.37 + f.si * 2) * 0.6;
+      pos.set(sc.c.x + Math.cos(a) * sc.rx, sc.c.y + Math.sin(a * 2 + sw) * 2, sc.c.z + Math.sin(a) * sc.rz);
+      pos.add(f.off).add(sc3.set(Math.sin(t * 0.9 + f.ph) * 0.25, Math.sin(t * 1.3 + f.ph) * 0.15, Math.cos(t * 0.8 + f.ph) * 0.25));
+      fwdV.set(-Math.sin(a) * sc.rx, Math.cos(a * 2 + sw) * 4, Math.cos(a) * sc.rz).multiplyScalar(Math.sign(sc.sp)).normalize();
       upV.set(0, 1, 0); sideV.crossVectors(fwdV, upV).normalize(); upV.crossVectors(sideV, fwdV);
       tmpM.makeBasis(fwdV, upV, sideV); sc3.setScalar(f.size); tmpM.scale(sc3); tmpM.setPosition(pos);
       fish.setMatrixAt(i, tmpM);
     });
     fish.instanceMatrix.needsUpdate = true;
-    const wt = (t * 3.2) % 520 - 260;
-    whale.position.set(wt, 9 + Math.sin(t * 0.2) * 2, 140); whale.rotation.z = Math.sin(t * 0.4) * 0.05;
+    const wt = (t * 2.6) % 520 - 260;
+    whale.position.set(wt, 12 + Math.sin(t * 0.15) * 2, 120); whale.rotation.z = Math.sin(t * 0.3) * 0.04;
+    const pp = snow.geometry.attributes.position.array;
+    for (let i = 0; i < PN; i++) { pp[i * 3 + 1] -= dt * 0.05; pp[i * 3] += Math.sin(t * 0.3 + i) * 0.002; if (pp[i * 3 + 1] < -1.5) pp[i * 3 + 1] = 14; }
+    snow.geometry.attributes.position.needsUpdate = true;
     const bp = bubbles.geometry.attributes.position.array;
     for (let i = 0; i < BN; i++) { bp[i * 3 + 1] += bsp[i] * dt; bp[i * 3] += Math.sin(t * 3 + i) * 0.003; if (bp[i * 3 + 1] > 14) bp[i * 3 + 1] = -1.5; }
     bubbles.geometry.attributes.position.needsUpdate = true;
   };
 }
 
-/* ---------------- 4) BULUTLARIN ÜSTÜ ---------------- */
-function buildClouds(g, cfg) {
-  const sunA = Math.atan2(cfg.sky.sunDir[0], cfg.sky.sunDir[2]);
-  const peaks = a => Math.exp(-((a + 0.55) ** 2) / 0.02) + 0.8 * Math.exp(-((a - 0.85) ** 2) / 0.012) + 0.55 * Math.exp(-((a - 1.4) ** 2) / 0.02);
-  g.add(makeRidge({ r: 520, base: -30, h: 110, seed: 5, freq: 5, top: '#6b5578', bot: '#4a3b5c', snow: '#ffd2bd', snowAt: 0.35, mask: peaks, sunA }));
-  const sea = cloudLayer({ y: -30, colA: '#a58bbf', colB: '#ffd6c2', sunCol: '#ff9a55', sunDir: cfg.sky.sunDir, horizon: cfg.sky.hor, scale: 0.005, cover: 0.12, opacity: 1, speed: 0.5, fadeStart: 300, fadeEnd: 1300 });
-  const high = cloudLayer({ y: 140, colA: '#ff9db0', colB: '#ffd9b0', sunCol: '#ffb070', sunDir: cfg.sky.sunDir, horizon: cfg.sky.hor, scale: 0.0022, cover: 0.55, opacity: 0.55, speed: 0.3, fadeStart: 500, fadeEnd: 1400 });
-  g.add(sea, high);
-  const puffs = [];
-  for (let i = 0; i < 9; i++) {
-    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudPuffTex(), color: pick([0xffd9c8, 0xffc7b8, 0xf2c6d8]), transparent: true, depthWrite: false, fog: false }));
-    const a = rr(-1.3, 1.3), d = rr(140, 420), sz = rr(60, 150);
-    sp.position.set(Math.sin(a) * d, rr(-22, 10), Math.cos(a) * d); sp.scale.set(sz * 1.6, sz, 1); g.add(sp); puffs.push({ sp, a, d, v: rr(0.002, 0.006) });
-  }
-  // sıcak hava balonu
-  const balloonTex = canvasTex(512, 256, (c, w, h) => { const cs = ['#d64545', '#f2c14e', '#3a7bd5', '#f2f2f2']; for (let i = 0; i < 16; i++) { c.fillStyle = cs[i % 4]; c.fillRect(i * w / 16, 0, w / 16 + 1, h); } });
-  const balloon = new THREE.Group();
-  const env = new THREE.Mesh(new THREE.SphereGeometry(4, 24, 16), new THREE.MeshStandardMaterial({ map: balloonTex, roughness: 0.7 })); env.scale.y = 1.2; balloon.add(env);
-  const basket = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1, 1.2), new THREE.MeshStandardMaterial({ color: 0x6b4a2a })); basket.position.y = -6.3; balloon.add(basket);
-  const flame = new THREE.Sprite(new THREE.SpriteMaterial({ map: softDotTex, color: 0xffa040, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); flame.position.y = -5.2; flame.scale.set(1.5, 1.5, 1); balloon.add(flame);
-  g.add(balloon);
-  return t => {
-    sea.userData.tick(t); high.userData.tick(t);
-    puffs.forEach(p => { const a = p.a + Math.sin(t * p.v) * 0.15; p.sp.position.x = Math.sin(a) * p.d; p.sp.position.z = Math.cos(a) * p.d; });
-    balloon.position.set(40 + Math.sin(t * 0.02) * 30, 4 + Math.sin(t * 0.25) * 1.5, 110);
-    flame.material.opacity = 0.4 + Math.max(0, Math.sin(t * 0.7)) * 0.6 * (0.8 + Math.random() * 0.2);
-  };
-}
-
-/* ---------------- 5) YÖRÜNGE ---------------- */
+/* ---------------- YÖRÜNGE: gerçek kıtalarla Dünya ---------------- */
 function buildSpace(g, cfg) {
   const sunDir = V3(...cfg.sky.sunDir).normalize();
+  const landTex = new THREE.TextureLoader().load('dunya-kara.png');
+  landTex.colorSpace = THREE.NoColorSpace; landTex.anisotropy = Math.min(8, maxAniso);
   const earthMat = new THREE.ShaderMaterial({
-    uniforms: { uTime: { value: 0 }, uSunDir: { value: sunDir } }, fog: false,
-    vertexShader: `varying vec3 vObjN; varying vec3 vWN; varying vec3 vWP;
-      void main(){ vObjN = normal; vWN = normalize(mat3(modelMatrix) * normal); vec4 w = modelMatrix * vec4(position, 1.); vWP = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
-    fragmentShader: `${GLSL_NOISE} varying vec3 vObjN; varying vec3 vWN; varying vec3 vWP; uniform float uTime; uniform vec3 uSunDir;
+    uniforms: { uTime: { value: 0 }, uSunDir: { value: sunDir }, tLand: { value: landTex } }, fog: false,
+    vertexShader: `varying vec3 vObjN; varying vec3 vWN; varying vec3 vWP; varying vec2 vUv;
+      void main(){ vUv = uv; vObjN = normal; vWN = normalize(mat3(modelMatrix) * normal); vec4 w = modelMatrix * vec4(position, 1.); vWP = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+    fragmentShader: `${GLSL_NOISE} varying vec3 vObjN; varying vec3 vWN; varying vec3 vWP; varying vec2 vUv; uniform float uTime; uniform vec3 uSunDir; uniform sampler2D tLand;
+      float pop(vec2 ll){
+        float p = 0.;
+        vec3 C[16];
+        C[0]=vec3(50.,8.,1.); C[1]=vec3(52.5,-1.,.9); C[2]=vec3(45.,10.,.8); C[3]=vec3(40.,-78.,1.); C[4]=vec3(35.,-118.,.7); C[5]=vec3(41.,-88.,.7);
+        C[6]=vec3(19.,-99.,.7); C[7]=vec3(-23.,-46.,.8); C[8]=vec3(7.,5.,.6); C[9]=vec3(30.,31.,.6); C[10]=vec3(39.,33.,.6); C[11]=vec3(24.,79.,1.);
+        C[12]=vec3(32.,116.,1.); C[13]=vec3(36.,138.,.9); C[14]=vec3(55.,38.,.6); C[15]=vec3(-7.,110.,.7);
+        for (int i = 0; i < 16; i++) { vec2 d = vec2(ll.x - C[i].x, (ll.y - C[i].y) * cos(radians(ll.x))); p += C[i].z * exp(-dot(d, d) / 90.); }
+        return p;
+      }
       void main(){
         vec3 n = normalize(vObjN);
-        float cont = fbm3(n * 2.1 + 3.); float land = smoothstep(.5, .53, cont); float elev = fbm3(n * 7.);
-        vec3 ocean = mix(vec3(.01,.05,.16), vec3(.02,.13,.3), smoothstep(.3, .5, cont));
-        vec3 ground = mix(vec3(.12,.24,.08), vec3(.45,.38,.24), smoothstep(.45, .7, elev));
-        float lat = abs(n.y);
-        ground = mix(ground, vec3(.92), smoothstep(.78, .86, lat)); ocean = mix(ocean, vec3(.85,.9,.95), smoothstep(.86, .92, lat));
+        vec3 L = texture2D(tLand, vUv).rgb; float land = smoothstep(.35, .65, L.r), coast = L.g;
+        float lat = (vUv.y - .5) * 180., lon = vUv.x * 360. - 180.;
+        float alat = abs(lat);
+        float m1 = fbm3(n * 9.), m2 = fbm3(n * 26. + 3.);
+        float desert = exp(-pow((alat - 23.) / 9., 2.)) * smoothstep(.35, .6, m1 + .15);
+        vec3 tropic = vec3(.05,.12,.03), temperate = vec3(.12,.16,.07), taiga = vec3(.06,.1,.05), sand = vec3(.62,.5,.32), tundra = vec3(.36,.34,.3);
+        vec3 ground = mix(tropic, temperate, smoothstep(15., 35., alat));
+        ground = mix(ground, taiga, smoothstep(48., 60., alat));
+        ground = mix(ground, tundra, smoothstep(64., 70., alat));
+        ground = mix(ground, sand, desert);
+        ground *= .8 + .45 * m2;
+        float ice = smoothstep(70., 76., alat + m1 * 6.) + smoothstep(62., 66., lat) * smoothstep(-75., -60., lon) * smoothstep(-15., -30., lon);
+        ground = mix(ground, vec3(.85,.88,.92), clamp(ice, 0., 1.));
+        vec3 ocean = mix(vec3(.005,.025,.08), vec3(.01,.06,.14), m1);
+        ocean = mix(ocean, vec3(.03,.16,.2), coast * (1. - land) * .8);
+        ocean = mix(ocean, vec3(.75,.82,.9), smoothstep(74., 80., alat + m1 * 5.));
         vec3 base = mix(ocean, ground, land);
-        float cl = fbm3(n * 4. + vec3(uTime * .004, 0., uTime * .002)); float clouds = smoothstep(.52, .75, cl);
-        vec3 wn = normalize(vWN); float ndl = dot(wn, normalize(uSunDir)); float day = smoothstep(-.1, .25, ndl);
-        vec3 col = base * max(ndl, 0.) * 1.4; col = mix(col, vec3(1.) * max(ndl, 0.) * 1.15, clouds * .9);
-        vec3 v = normalize(cameraPosition - vWP); vec3 hf = normalize(normalize(uSunDir) + v);
-        col += vec3(1., .9, .7) * pow(max(dot(wn, hf), 0.), 60.) * (1. - land) * (1. - clouds) * day * .7;
-        float city = step(.8, hash13(floor(n * 240.))) * land * (1. - clouds) * smoothstep(.52, .6, fbm3(n * 9.));
-        col += vec3(1., .72, .32) * city * (1. - day) * 1.6;
-        float rim = pow(1. - max(dot(wn, v), 0.), 3.);
-        col += vec3(.3, .55, 1.) * rim * (.15 + .85 * day);
+        vec3 q = n * 3. + vec3(uTime * .003, 0., uTime * .0015);
+        vec3 warp = vec3(fbm3(q + 1.7), fbm3(q + 9.2), fbm3(q + 4.1));
+        float cl = fbm3(q * 1.6 + warp * 1.8);
+        float belt = .1 * exp(-pow(lat / 8., 2.)) + .08 * exp(-pow((alat - 55.) / 12., 2.)) - .1 * exp(-pow((alat - 25.) / 8., 2.));
+        float clouds = smoothstep(.5, .78, cl + belt) * .95;
+        vec3 wn = normalize(vWN); float ndl = dot(wn, normalize(uSunDir)); float day = smoothstep(-.12, .2, ndl);
+        vec3 v = normalize(cameraPosition - vWP);
+        vec3 col = base * max(ndl, 0.) * 1.6;
+        vec3 hf = normalize(normalize(uSunDir) + v);
+        col += vec3(1., .88, .7) * pow(max(dot(wn, hf), 0.), 90.) * (1. - land) * (1. - clouds) * day * 1.2;
+        col = mix(col, vec3(1.) * (max(ndl, 0.) * 1.25 + .02), clouds);
+        float city = step(.86, hash13(floor(n * 420.))) * land * (1. - ice) * clamp(pop(vec2(lat, lon)) * 1.4 + .05 * step(.97, hash13(floor(n * 300.) + 7.)), 0., 1.);
+        col += vec3(1., .7, .32) * city * (1. - day) * (1. - clouds * .8) * 1.8;
+        float rim = pow(1. - max(dot(wn, v), 0.), 2.5);
+        col = mix(col, vec3(.35, .6, 1.) * (.1 + .9 * day), rim * .6);
         gl_FragColor = vec4(col, 1.);
         ${GLSL_OUT}
       }`,
   });
-  const earth = new THREE.Mesh(new THREE.SphereGeometry(260, 160, 80), earthMat);
-  earth.position.set(0, -330, 300); earth.rotation.z = 0.41; g.add(earth);
-  const atmo = new THREE.Mesh(new THREE.SphereGeometry(272, 96, 48), new THREE.ShaderMaterial({
+  const earth = new THREE.Mesh(new THREE.SphereGeometry(260, 192, 96), earthMat);
+  earth.position.set(0, -330, 300); earth.rotation.set(0.35, -2.2, 0.2); g.add(earth);
+  const atmo = new THREE.Mesh(new THREE.SphereGeometry(271, 128, 64), new THREE.ShaderMaterial({
     uniforms: { uSunDir: { value: sunDir } }, side: THREE.BackSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
     vertexShader: `varying vec3 vWN; varying vec3 vWP; void main(){ vWN = normalize(mat3(modelMatrix) * normal); vec4 w = modelMatrix * vec4(position,1.); vWP = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
     fragmentShader: `varying vec3 vWN; varying vec3 vWP; uniform vec3 uSunDir;
-      void main(){ vec3 v = normalize(cameraPosition - vWP); float k = pow(max(0., .62 + dot(vWN, v)), 3.5) * 2.2;
-        float day = smoothstep(-.3, .4, dot(-vWN, normalize(uSunDir)));
-        gl_FragColor = vec4(vec3(.35, .6, 1.) * k * (.2 + .8 * day), 1.); ${GLSL_OUT} }`,
+      void main(){ vec3 v = normalize(cameraPosition - vWP); float k = pow(max(0., .58 + dot(vWN, v)), 3.5) * 2.4;
+        float day = smoothstep(-.35, .35, dot(-vWN, normalize(uSunDir)));
+        vec3 c = mix(vec3(1., .45, .2), vec3(.3, .58, 1.), smoothstep(-.1, .4, dot(-vWN, normalize(uSunDir))));
+        gl_FragColor = vec4(c * k * (.12 + .88 * day), 1.); ${GLSL_OUT} }`,
   }));
   atmo.position.copy(earth.position); g.add(atmo);
-  const moon = new THREE.Mesh(new THREE.SphereGeometry(16, 48, 24), new THREE.ShaderMaterial({
+  const moon = new THREE.Mesh(new THREE.SphereGeometry(16, 64, 32), new THREE.ShaderMaterial({
     uniforms: { uSunDir: { value: sunDir } }, fog: false,
     vertexShader: `varying vec3 vN; varying vec3 vO; void main(){ vO = normal; vN = normalize(mat3(modelMatrix) * normal); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
     fragmentShader: `${GLSL_NOISE} varying vec3 vN; varying vec3 vO; uniform vec3 uSunDir;
-      void main(){ float c = fbm3(vO * 3.); float cr = smoothstep(.55, .6, fbm3(vO * 9.)); vec3 base = vec3(.55) * (.75 + c * .5) - cr * .12;
-        gl_FragColor = vec4(base * max(dot(normalize(vN), normalize(uSunDir)), 0.) * 1.3, 1.); ${GLSL_OUT} }`,
+      void main(){ float mare = smoothstep(.5, .62, fbm3(vO * 2.2 + 5.)); float c = fbm3(vO * 6.); float cr = smoothstep(.58, .62, fbm3(vO * 14.));
+        vec3 base = mix(vec3(.62,.6,.57), vec3(.33,.33,.34), mare) * (.8 + c * .4) - cr * .08;
+        gl_FragColor = vec4(base * max(dot(normalize(vN), normalize(uSunDir)), 0.) * 1.5, 1.); ${GLSL_OUT} }`,
   }));
   moon.position.set(-300, 160, 700); g.add(moon);
-  // geçen uydu
   const sat = new THREE.Group();
   const metal = new THREE.MeshStandardMaterial({ color: 0xd8d8d8, metalness: 0.8, roughness: 0.3 });
   const panel = new THREE.MeshStandardMaterial({ color: 0x1b3a8a, metalness: 0.5, roughness: 0.25, emissive: 0x0a1a40 });
@@ -1752,7 +1953,7 @@ function buildSpace(g, cfg) {
   for (const sx of [-1, 1]) { const pnl = new THREE.Mesh(new THREE.BoxGeometry(4, 0.05, 1.4), panel); pnl.position.x = sx * 2.6; sat.add(pnl); }
   sat.rotation.z = Math.PI / 2; g.add(sat);
   return t => {
-    earthMat.uniforms.uTime.value = t; earth.rotation.y = t * 0.006;
+    earthMat.uniforms.uTime.value = t; earth.rotation.y = -2.2 + t * 0.004;
     const st = (t * 0.012) % 2;
     sat.position.set(-120 + st * 140, 30 + Math.sin(st * 3) * 6, 90); sat.rotation.x = t * 0.1;
   };
@@ -1760,11 +1961,19 @@ function buildSpace(g, cfg) {
 
 /* ---- manzara listesi ---- */
 const VIEWS = {
-  dag: { name: 'Alpler', note: 'Gün batımında karlı zirveler', sky: { top: '#3a6bb3', hor: '#f4c08a', bot: '#5b6a86', sunDir: [0.32, 0.09, 1], sunCol: '#ffb46b', sunSize: 1400, glow: 0.55 }, light: ['#ffcf9e', 1.7], hemi: ['#ffe2c0', '#3a2a1e', 0.6], sound: 'wind', deck: true, build: buildMountain },
-  fiyort: { name: 'Norveç Fiyordu', note: 'Kutup ışıkları ve durgun su', sky: { top: '#020615', hor: '#14264a', bot: '#05070f', sunDir: [-0.45, 0.22, 1], sunCol: '#cfd8ff', sunSize: 2600, glow: 0.08, stars: 1 }, light: ['#8ea8ff', 0.6], hemi: ['#9bb0ff', '#0a0d18', 0.4], sound: 'water', deck: true, build: buildFjord },
-  deniz: { name: 'Okyanusun Dibi', note: 'Balık sürüleri, yosun ormanı, balina', sky: { top: '#4fb8e6', hor: '#0f5f8d', bot: '#04243f', sunDir: [0.15, 1, 0.4], sunCol: '#bff2ff', sunSize: 30, glow: 0.6 }, light: ['#8fe3ff', 1.1], hemi: ['#6fd0ff', '#06283c', 0.65], fog: { color: '#0b4a6c', density: 0.02 }, sound: 'underwater', caustics: true, build: buildUnderwater },
-  bulut: { name: 'Bulutların Üstü', note: 'Gün batımı, bulut denizi, balon', sky: { top: '#272c69', hor: '#ffb27a', bot: '#ff9a6a', sunDir: [-0.25, 0.035, 1], sunCol: '#ff8c4a', sunSize: 900, glow: 0.9 }, light: ['#ffa877', 1.6], hemi: ['#ffc3a0', '#4a3050', 0.55], sound: 'highwind', build: buildClouds },
-  uzay: { name: 'Yörünge', note: 'Dünya ayaklarının altında', sky: { top: '#000004', hor: '#02030a', bot: '#000003', sunDir: [0.7, 0.18, 0.7], sunCol: '#fff6e8', sunSize: 3000, glow: 0.15, stars: 1.6, starsAll: 1, nebula: 0.32 }, light: ['#ffffff', 2.1], hemi: ['#8090b0', '#05050a', 0.3], sound: 'space', build: buildSpace },
+  dag: {
+    name: 'Alpler', note: 'Vadiye bakan karlı zirveler, gezen bulutlar', backdrop: true, deck: true, sound: 'wind',
+    sunDir: [-0.82, 0.32, 0.47], light: ['#ffdcb0', 1.5], hemi: ['#cfe0ff', '#3a2f24', 0.6],
+    bd: { terr: [500, 2400, 1400, 1500], snow: 2100, tree: 1750, fog: 0.000028, mist: 0, cloud: -0.16, water: -10000, power: 1.05, exposure: 1.0, top: [0.13, 0.32, 0.74], hor: [0.52, 0.64, 0.82] },
+  },
+  fiyort: {
+    name: 'Norveç Fiyordu', note: 'Sarp kayalıklar, durgun su, sabah sisi', backdrop: true, deck: true, sound: 'water',
+    sunDir: [0.78, 0.26, 0.57], light: ['#ffe2bf', 1.3], hemi: ['#c8dcff', '#2a2a24', 0.55],
+    bd: { terr: [-420, 1050, 1000, 560], snow: 1200, tree: 620, fog: 0.000035, mist: 0.0012, mistH: 110, cloud: -0.06, water: 0, power: 1.0, exposure: 1.0, top: [0.15, 0.34, 0.72], hor: [0.56, 0.66, 0.8] },
+  },
+  okyanus: { name: 'Açık Deniz', note: 'Uçurumdan gün batımı ve dalgalar', deck: true, sound: 'water', sunDir: [0.16, 0.026, 1], light: ['#ffa86a', 1.5], hemi: ['#ffd2b0', '#2a2430', 0.5], build: buildOcean },
+  deniz: { name: 'Okyanusun Dibi', note: 'Yosun ormanı, sardalya sürüleri, balina', sky: { top: '#2f87b0', hor: '#0b4a6a', bot: '#021725', sunDir: [0.15, 1, 0.4], sunCol: '#bff2ff', sunSize: 30, glow: 0.35, under: 1 }, light: ['#8fe3ff', 1.0], hemi: ['#5cc0e8', '#06283c', 0.6], fog: { color: '#0a4560', density: 0.026 }, sound: 'underwater', caustics: true, build: buildUnderwater },
+  uzay: { name: 'Yörünge', note: 'Ayaklarının altında Dünya ve Samanyolu', sky: { top: '#000003', hor: '#000206', bot: '#000002', sunDir: [0.7, 0.18, 0.7], sunCol: '#fff6e8', sunSize: 3000, glow: 0.08, stars: 1.4, galaxy: 1 }, light: ['#ffffff', 2.1], hemi: ['#8090b0', '#05050a', 0.25], sound: 'space', build: buildSpace },
 };
 const VIEW_KEYS = Object.keys(VIEWS);
 const outside = new THREE.Group();
@@ -1773,7 +1982,7 @@ const viewState = { current: null, built: {}, deck: null, caustics: null, hemi: 
 
 function buildGlassWall() {
   const g = new THREE.Group();
-  const glass = new THREE.Mesh(new THREE.PlaneGeometry(2 * R, H), new THREE.MeshStandardMaterial({ color: 0xcfe6f2, transparent: true, opacity: 0.06, roughness: 0.04, metalness: 0.9, depthWrite: false }));
+  const glass = new THREE.Mesh(new THREE.PlaneGeometry(2 * R, H), new THREE.MeshStandardMaterial({ color: 0xcfe6f2, transparent: true, opacity: 0.05, roughness: 0.04, metalness: 0.9, depthWrite: false }));
   glass.position.set(0, H / 2, R - 0.005); glass.rotation.y = Math.PI; g.add(glass);
   const steel = new THREE.MeshStandardMaterial({ color: 0x15171a, metalness: 0.6, roughness: 0.45 });
   for (const x of [-R + 0.04, -2.5, 0, 2.5, R - 0.04]) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.07, H, 0.14), steel); m.position.set(x, H / 2, R - 0.02); g.add(m); }
@@ -1781,12 +1990,11 @@ function buildGlassWall() {
   const slab = new THREE.Mesh(new THREE.BoxGeometry(2 * R + 0.2, 0.3, 0.3), new THREE.MeshStandardMaterial({ color: 0x24201c, roughness: 0.9 }));
   slab.position.set(0, -0.15, R + 0.1); g.add(slab);
   scene.add(g);
-  // okyanus manzarasında yere vuran kostik ışık
   const cMat = new THREE.ShaderMaterial({
     uniforms: { uTime: { value: 0 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
     vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix*vec4(position,1.); vW = w.xyz; gl_Position = projectionMatrix*viewMatrix*w; }`,
     fragmentShader: `${GLSL_NOISE} varying vec3 vW; uniform float uTime;
-      void main(){ float c = caustic(vW.xz * .32, uTime * .55) * smoothstep(-.5, 4.6, vW.z) * .55; gl_FragColor = vec4(vec3(.55, .9, 1.) * c, c); ${GLSL_OUT} }`,
+      void main(){ float c = caustic(vW.xz * .32, uTime * .5) * smoothstep(-.5, 4.6, vW.z) * .35; gl_FragColor = vec4(vec3(.55, .9, 1.) * c, c); ${GLSL_OUT} }`,
   });
   const c = new THREE.Mesh(new THREE.PlaneGeometry(2 * R, 5.5), cMat); c.rotation.x = -Math.PI / 2; c.position.set(0, 0.009, R - 2.75);
   c.visible = false; scene.add(c); viewState.caustics = c;
@@ -1804,17 +2012,30 @@ function initViews(hemi) {
 }
 function applyView(key) {
   const cfg = VIEWS[key];
-  if (!viewState.built[key]) {
+  if (cfg.build && !viewState.built[key]) {
     const group = new THREE.Group(); outside.add(group);
     viewState.built[key] = { group, update: cfg.build(group, cfg) || (() => {}) };
   }
   for (const k in viewState.built) viewState.built[k].group.visible = k === key;
-  const sk = cfg.sky, u = skyMat.uniforms;
-  u.uTop.value.set(sk.top); u.uHor.value.set(sk.hor); u.uBot.value.set(sk.bot); u.uSunDir.value.set(...sk.sunDir).normalize();
-  u.uSunCol.value.set(sk.sunCol); u.uSunSize.value = sk.sunSize; u.uGlow.value = sk.glow; u.uStars.value = sk.stars || 0; u.uStarsAll.value = sk.starsAll || 0; u.uNebula.value = sk.nebula || 0;
+  const sunDir = V3(...(cfg.sunDir || cfg.sky.sunDir)).normalize();
+  backdrop.active = !!cfg.backdrop;
+  sky.visible = !!(cfg.backdrop || cfg.sky);
+  if (cfg.backdrop) {
+    sky.material = backdropDomeMat;
+    const u = backdrop.mat.uniforms, b = cfg.bd;
+    u.uTerr.value.set(...b.terr); u.uSnowLine.value = b.snow; u.uTreeLine.value = b.tree; u.uFog.value = b.fog;
+    u.uMist.value = b.mist || 0; u.uMistH.value = b.mistH || 200; u.uCloudCover.value = b.cloud; u.uWater.value = b.water;
+    u.uSunPower.value = b.power; u.uExposure.value = b.exposure; u.uSun.value.copy(sunDir); u.uSkyTop.value.set(...b.top); u.uSkyHor.value.set(...b.hor);
+  } else if (cfg.sky) {
+    sky.material = skyMat;
+    const sk = cfg.sky, u = skyMat.uniforms;
+    u.uTop.value.set(sk.top); u.uHor.value.set(sk.hor); u.uBot.value.set(sk.bot); u.uSunDir.value.copy(sunDir);
+    u.uSunCol.value.set(sk.sunCol); u.uSunSize.value = sk.sunSize; u.uGlow.value = sk.glow;
+    u.uStars.value = sk.stars || 0; u.uGalaxy.value = sk.galaxy || 0; u.uUnder.value = sk.under || 0;
+  }
   sunLight.color.set(cfg.light[0]); sunLight.intensity = cfg.light[1];
-  sunLight.position.set(...sk.sunDir).normalize().multiplyScalar(40);
-  if (sk.sunDir[1] < 0.5) sunLight.position.y = Math.max(sunLight.position.y, 8);
+  sunLight.position.copy(sunDir).multiplyScalar(40);
+  if (sunDir.y < 0.5) sunLight.position.y = Math.max(sunLight.position.y, 8);
   viewState.hemi.color.set(cfg.hemi[0]); viewState.hemi.groundColor.set(cfg.hemi[1]); viewState.hemi.intensity = cfg.hemi[2];
   scene.fog = cfg.fog ? new THREE.FogExp2(cfg.fog.color, cfg.fog.density) : null;
   viewState.deck.visible = !!cfg.deck;
@@ -1829,6 +2050,7 @@ function updateViews(t, dt) {
   skyMat.uniforms.uTime.value = t;
   if (viewState.caustics.visible) viewState.caustics.material.uniforms.uTime.value = t;
   const v = viewState.built[viewState.current]; if (v) v.update(t, dt);
+  renderBackdrop(t, dt);
 }
 
 /* ---- manzara menüsü ---- */
@@ -1854,7 +2076,7 @@ viewMenu.addEventListener('click', e => {
   setTimeout(() => {
     applyView(key);
     renderer.compile(scene, camera);
-    setTimeout(() => { fadeEl.classList.remove('on'); switching = false; }, 120);
+    setTimeout(() => { fadeEl.classList.remove('on'); switching = false; }, 150);
   }, reduceMotion ? 0 : 480);
 });
 
@@ -1864,9 +2086,11 @@ function buildCorner() {
   // harita: sol duvarda, cama yakın
   {
     const g = new THREE.Group(); g.position.set(-R + 0.02, 2.15, 4.15); g.rotation.y = Math.PI / 2; scene.add(g);
-    const mapTex = canvasTex(1024, 720, (c, w, h) => drawMap(c, w, h));
+    const mapTex = canvasTex(2048, 1448, (c, w, h) => drawMap(c, w, h));
+    corner.mapCanvas = mapTex.image;
     const fr = new THREE.Mesh(new THREE.BoxGeometry(1.42, 1.04, 0.05), woodDarkMat); fr.position.z = 0.025; g.add(fr);
     const pic = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.92), new THREE.MeshStandardMaterial({ map: mapTex, roughness: 0.85 })); pic.position.z = 0.052; g.add(pic);
+    corner.map = g;
   }
   // duvar saati: sağ duvarda (gerçek saati gösterir)
   {
@@ -1953,6 +2177,13 @@ function buildCorner() {
   for (let i = 0; i < 5; i++) { const h = new THREE.Sprite(new THREE.SpriteMaterial({ map: heartTex, transparent: true, opacity: 0, depthWrite: false })); h.scale.setScalar(0.09); scene.add(h); corner.hearts.push({ sp: h, t: 9 }); }
   return chair;
 }
+function showMap() {
+  const mv = document.getElementById('mapView');
+  document.getElementById('mapImg').src = corner.mapCanvas.toDataURL('image/jpeg', 0.9);
+  mv.hidden = false; state = 'map';
+  mv.querySelector('button').focus({ preventScroll: true });
+}
+function hideMap() { document.getElementById('mapView').hidden = true; if (state === 'map') state = 'idle'; }
 function petCat() {
   Sound.purr();
   const p = corner.cat.head.getWorldPosition(new THREE.Vector3());
@@ -2105,6 +2336,7 @@ function endPointer(e) {
     const hit = pickBook(e.clientX, e.clientY);
     if (hit) { dismissHint(); openBook(hit); }
     else if (pickCat(e.clientX, e.clientY)) petCat();
+    else if (pickMap(e.clientX, e.clientY)) showMap();
     else {
       const fp = pickFloor(e.clientX, e.clientY);
       if (fp) { dismissHint(); walkTo(fp, null, null); }
@@ -2123,6 +2355,7 @@ window.addEventListener('keydown', e => {
     if (e.key === 'ArrowLeft') navBook(-1);
     return;
   }
+  if (state === 'map') { if (e.key === 'Escape') hideMap(); return; }
   if (e.key === 'Escape' && drawer.classList.contains('open')) { toggleDrawer(false); return; }
   if (e.key === 'Escape' && !viewMenu.hidden) { toggleViewMenu(false); return; }
   if (e.target.closest('input, textarea, aside')) return;
@@ -2146,6 +2379,7 @@ joyEl.addEventListener('pointerdown', e => { joyId = e.pointerId; try { joyEl.se
 joyEl.addEventListener('pointermove', e => { if (e.pointerId === joyId) joyMove(e); });
 const joyEnd = e => { if (e.pointerId !== joyId) return; joyId = null; joy.x = joy.y = 0; joyKnob.style.transform = ''; };
 joyEl.addEventListener('pointerup', joyEnd); joyEl.addEventListener('pointercancel', joyEnd);
+document.getElementById('mapView').addEventListener('click', hideMap);
 
 function pickBook(x, y) {
   ndc.set(x / innerWidth * 2 - 1, -(y / innerHeight) * 2 + 1);
@@ -2158,6 +2392,12 @@ function pickCat(x, y) {
   ndc.set(x / innerWidth * 2 - 1, -(y / innerHeight) * 2 + 1); raycaster.setFromCamera(ndc, camera);
   return raycaster.intersectObject(corner.cat.group, true).length > 0;
 }
+function pickMap(x, y) {
+  if (!corner.map) return false;
+  ndc.set(x / innerWidth * 2 - 1, -(y / innerHeight) * 2 + 1); raycaster.setFromCamera(ndc, camera);
+  const hit = raycaster.intersectObject(corner.map, true)[0];
+  return !!hit && hit.distance < 7;
+}
 function pickFloor(x, y) {
   ndc.set(x / innerWidth * 2 - 1, -(y / innerHeight) * 2 + 1); raycaster.setFromCamera(ndc, camera);
   const hits = raycaster.intersectObjects([rugMesh, floorMesh], false);
@@ -2166,6 +2406,12 @@ function pickFloor(x, y) {
 function updateHover(x, y) {
   const hit = pickBook(x, y);
   setHover(hit);
+  if (!hit && pickMap(x, y)) {
+    canvas.classList.add('pointing');
+    tooltip.innerHTML = `<strong>Avrupa başvuru haritası</strong>Büyütmek için tıkla.`;
+    tooltip.hidden = false; tooltip.style.left = Math.min(x, innerWidth - 300) + 'px'; tooltip.style.top = Math.min(y, innerHeight - 90) + 'px';
+    return;
+  }
   if (!hit && pickCat(x, y)) {
     canvas.classList.add('pointing');
     tooltip.innerHTML = `<strong>Kütüphanenin kedisi</strong>Koltukta uyuyor. Sevmek için tıkla.`;
@@ -2575,7 +2821,7 @@ async function start() {
     ? 'Sol alttaki çubukla yürü · yere dokun, oraya git · kitaba dokun, aç'
     : 'Sürükle: etrafa bak · W A S D ya da oklar: yürü · yere tıkla: oraya git';
   setTimeout(dismissHint, 14000);
-  window.__library = { UNIS, openBook, goToBook, state: () => state, applyView, view, player, VIEW_KEYS, walkTo, V3 };
+  window.__library = { UNIS, openBook, goToBook, state: () => state, applyView, view, player, VIEW_KEYS, walkTo, V3, showMap, backdrop };
 }
 start();
 </script>
